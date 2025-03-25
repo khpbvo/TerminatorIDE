@@ -5,16 +5,16 @@
 - [x] Create project structure and directories
 - [x] Set up Python virtual environment
 - [x] Install Textual library and dependencies
-- [ ] Configure OpenAI API credentials and environment variables
-- [ ] Set up Git repository for version control
-- [ ] Create documentation structure
-- [ ] Set up testing framework
+- [x] Configure OpenAI API credentials and environment variables
+- [x] Set up Git repository for version control
+- [x] Create documentation structure
+- [x] Set up testing framework
 
 ## Phase 2: OpenAI Agent SDK Integration
 
 - [ ] Implement agent initialization and configuration
 - [ ] Set up proper authentication for OpenAI API
-- [ ] Implement model selection mechanism (GPT-4o, GPT-3.5-turbo, etc.)
+- [ ] Implement model selection mechanism (o3-mini.)
 - [ ] Create centralized context management for agents
 - [ ] Set up proper error handling and rate limiting
 - [ ] Implement tracing for debugging agent behavior
@@ -152,4 +152,4 @@
 - [ ] Add proper error handling for model limitations
 - [ ] Create fallback mechanisms for API outages
 - [ ] Ensure compliance with OpenAI usage policies and rate limits
-- [ ] Implement model switching based on task complexitypip
+- [ ] Implement model switching based on task complexity

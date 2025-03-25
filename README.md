@@ -45,6 +45,37 @@ Run the application:
 python -m src.terminatoride.app
 ```
 
+## Development
+
+### Running Tests
+
+To run all tests:
+```
+make test
+```
+
+Run unit tests only:
+```
+make test-unit
+```
+
+Run tests with coverage report:
+```
+make test-coverage
+```
+
+### Code Quality
+
+Format code:
+```
+make format
+```
+
+Run linting:
+```
+make lint
+```
+
 ## License
 
 [MIT License](LICENSE)

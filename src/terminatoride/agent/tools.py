@@ -59,7 +59,7 @@ async def write_file(ctx: RunContextWrapper[Any], path: str, content: str) -> st
 
 @function_tool
 async def list_directory(ctx: RunContextWrapper[Any], path: str = ".", 
-                      show_hidden: bool = False) -> List[FileInfo]:
+                        show_hidden: bool = False) -> List[FileInfo]:
     """
     List files and directories in the given path.
     

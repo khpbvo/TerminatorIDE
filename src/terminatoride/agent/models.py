@@ -8,8 +8,6 @@ from typing import Dict, Any, Optional
 class ModelType(Enum):
     """Available model types for agents."""
     GPT4O = "gpt-4o"
-    GPT4 = "gpt-4"
-    GPT35TURBO = "gpt-3.5-turbo"
     O3MINI = "o3-mini"
     
     @classmethod
@@ -87,7 +85,7 @@ class ModelSelector:
     
     @staticmethod
     def create_run_config(model_type: Optional[ModelType] = None, 
-                         settings: Optional[ModelSettings] = None) -> Dict[str, Any]:
+                        settings: Optional[ModelSettings] = None) -> Dict[str, Any]:
         """
         Create a run configuration for the Agent SDK.
         

@@ -17,6 +17,12 @@ class FileInfo(TypedDict):
     size: int
     is_directory: bool
 
+class SearchResult(TypedDict):
+    path: str
+    line_number: int
+    content: str
+    context: str
+
 @function_tool
 async def read_file(ctx: RunContextWrapper[Any], path: str) -> str:
     """
@@ -158,6 +164,149 @@ async def get_current_file(ctx: RunContextWrapper[Any]) -> FileInfo:
         "is_directory": False
     }
 
+@function_tool
+async def search_in_files(ctx: RunContextWrapper[Any], pattern: str, 
+                         file_pattern: str = "*.py", 
+                         search_dir: str = ".") -> List[SearchResult]:
+    """
+    Search for a pattern in files matching the given pattern.
+    
+    Args:
+        pattern: Text or regex pattern to search for
+        file_pattern: File pattern to match (e.g. "*.py")
+        search_dir: Directory to search in
+        
+    Returns:
+        List of search results with matching lines and context
+    """
+    try:
+        import re
+        search_path = Path(search_dir).expanduser().resolve()
+        results = []
+        
+        for path in search_path.rglob(file_pattern):
+            if not path.is_file():
+                continue
+                
+            try:
+                content = path.read_text(encoding='utf-8', errors='replace')
+                lines = content.splitlines()
+                
+                for i, line in enumerate(lines):
+                    if re.search(pattern, line):
+                        # Get context (a few lines before and after)
+                        start = max(0, i-2)
+                        end = min(len(lines), i+3)
+                        context_lines = lines[start:end]
+                        
+                        results.append({
+                            "path": str(path),
+                            "line_number": i + 1,
+                            "content": line,
+                            "context": "\n".join(f"{j+start+1}: {l}" for j, l in enumerate(context_lines))
+                        })
+            except Exception as e:
+                # Skip files that can't be read
+                continue
+                
+        return results
+    except Exception as e:
+        return [{"path": "", "line_number": 0, "content": f"Error searching files: {str(e)}", "context": ""}]
+
+@function_tool
+async def git_status(ctx: RunContextWrapper[Any], repo_path: str = ".") -> str:
+    """
+    Get the git status of a repository.
+    
+    Args:
+        repo_path: Path to the git repository
+        
+    Returns:
+        Git status output
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", repo_path, "status"],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            return f"Error getting git status: {result.stderr}"
+            
+        return result.stdout
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@function_tool
+async def update_editor_content(ctx: RunContextWrapper[Any], content: str) -> str:
+    """
+    Update the content of the current editor.
+    
+    Args:
+        content: New content to put in the editor
+        
+    Returns:
+        Success message or error
+    """
+    try:
+        # This will be connected to the UI in the future
+        # For now, store in context
+        context = ctx.context
+        current_file = getattr(context, "current_file", None)
+        
+        if current_file and hasattr(current_file, "update_content"):
+            current_file.update_content(content)
+            return "Editor content updated successfully"
+        
+        return "Editor content will be updated when implemented"
+    except Exception as e:
+        return f"Error updating editor content: {str(e)}"
+
+@function_tool
+async def run_terminal_command(ctx: RunContextWrapper[Any], command: str, 
+                              working_dir: str = ".") -> Dict[str, str]:
+    """
+    Run a command in the terminal.
+    
+    Args:
+        command: Command to run
+        working_dir: Working directory for the command
+        
+    Returns:
+        Dictionary with stdout and stderr
+    """
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            cwd=working_dir,
+            timeout=30  # Timeout after 30 seconds
+        )
+        
+        return {
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "return_code": result.returncode,
+            "success": result.returncode == 0
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "stdout": "",
+            "stderr": "Command timed out after 30 seconds",
+            "return_code": -1,
+            "success": False
+        }
+    except Exception as e:
+        return {
+            "stdout": "",
+            "stderr": f"Error: {str(e)}",
+            "return_code": -1,
+            "success": False
+        }
+
 def register_tools():
     """Register and return all available tools."""
     return [
@@ -165,5 +314,9 @@ def register_tools():
         write_file,
         list_directory,
         execute_python,
-        get_current_file
+        get_current_file,
+        search_in_files,
+        git_status,
+        update_editor_content,
+        run_terminal_command
     ]

@@ -1,0 +1,274 @@
+/* Main layout grid */
+Screen {
+    layout: grid;
+    grid-size: 3;
+    grid-columns: 1fr 2fr 1fr;
+    grid-rows: 1fr 25;
+    background: $surface;
+}
+
+/* Panel styling */
+#left-panel {
+    width: 100%;
+    height: 100%;
+    border: solid $accent;
+    background: $surface;
+    color: $text;
+    padding: 1;
+}
+
+#editor-panel {
+    width: 100%;
+    height: 100%;
+    border: solid $primary;
+    background: $surface-darken-1;
+    color: $text;
+    padding: 1;
+}
+
+#agent-panel {
+    width: 100%;
+    height: 100%;
+    border: solid $secondary;
+    background: $surface;
+    color: $text;
+    padding: 1;
+}
+
+/* Status bar styling */
+#status-bar {
+    height: 1;
+    dock: bottom;
+    width: 100%;
+    layout: horizontal;
+    background: $primary;
+    color: $text;
+    padding: 0 1;
+}
+
+#status-message {
+    width: 30%;
+    height: 1;
+    content-align: left middle;
+}
+
+#cursor-position {
+    width: 40%;
+    height: 1;
+    content-align: center middle;
+}
+
+#file-encoding {
+    width: 30%;
+    height: 1;
+    content-align: right middle;
+}
+
+/* Focus styling */
+#left-panel:focus, #editor-panel:focus, #agent-panel:focus {
+    border: double $accent;
+}
+
+/* Responsive layout adjustments - using simple class-based approach for Textual */
+.narrow-screen Screen {
+    grid-columns: 1fr 3fr;
+}
+
+.narrow-screen #agent-panel {
+    display: none;
+}
+
+.very-narrow-screen Screen {
+    grid-columns: 1fr;
+}
+
+.very-narrow-screen #left-panel, .very-narrow-screen #agent-panel {
+    display: none;
+}
+
+/* Modal dialog styling */
+.modal {
+    width: 60%;
+    height: 60%;
+    border: thick $primary;
+    background: $surface;
+    padding: 1;
+}
+
+.modal #title {
+    background: $primary;
+    color: $text;
+    padding: 1;
+    text-align: center;
+}
+
+.modal #content {
+    padding: 1;
+}
+
+/* Notification styling */
+.notification {
+    width: 40%;
+    dock: bottom;
+    layer: notification;
+    background: $accent;
+    color: $text;
+    height: auto;
+    padding: 1;
+    margin: 2;
+    border: solid $primary;
+    text-align: center;
+}
+
+/* Help screen styling */
+#help-container {
+    width: 80%;
+    height: 80%;
+    border: thick $primary;
+    background: $surface;
+    padding: 1;
+    margin: 2 10;
+}
+
+#help-title {
+    text-align: center;
+    background: $primary;
+    color: $text;
+    padding: 1;
+    text-style: bold;
+    width: 100%;
+}
+
+#shortcut-grid {
+    layout: grid;
+    grid-size: 3;
+    grid-columns: 20 20 1fr;
+    margin: 1;
+    height: auto;
+    width: 100%;
+    border: none;
+}
+
+.category {
+    text-style: bold;
+    color: $accent;
+    column-span: 3;
+    margin-top: 1;
+}
+
+.shortcut {
+    color: $secondary;
+    text-style: bold;
+}
+
+.description {
+    color: $text;
+}
+
+#help-footer {
+    dock: bottom;
+    height: 3;
+    width: 100%;
+    content-align-horizontal: center;
+    padding: 1;
+}
+
+/* File Explorer styling */
+#file-explorer {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+#file-explorer-title {
+    background: $primary-darken-2;
+    color: $text;
+    text-align: center;
+}
+
+#file-search {
+    margin: 0 0 1 0;
+    height: 1;
+    width: 100%;
+}
+
+#file-tree-container {
+    height: 1fr;
+    width: 100%;
+    border: solid $primary;
+    margin-top: 1;
+}
+
+#file-tree {
+    padding: 0 1;
+}
+
+/* Left Panel Tab Styling */
+#left-panel-tabs {
+    width: 100%;
+    height: 100%;
+}
+
+#left-panel-tabs > TabPane {
+    padding: 0;
+}
+
+#left-panel-tabs > Tabs {
+    height: auto;
+    dock: top;
+}
+
+#left-panel-tabs > Tabs > .tab {
+    padding: 0 2;
+    height: 1;
+    width: auto;
+    text-style: bold;
+}
+
+#left-panel-tabs > Tabs > .tab.--active {
+    background: $primary;
+    color: $text;
+}
+
+/* Add these styles for the file explorer button bar */
+#button-bar {
+    height: auto;
+    width: 100%;
+    margin: 0 0 1 0;
+    align-horizontal: center;
+}
+
+#button-bar Button {
+    margin: 0 1;
+    min-width: 8;
+    padding: 0 1;
+}
+
+/* Style the selected tree node more prominently */
+Tree .tree--cursor {
+    background: $primary;
+    color: $text;
+    text-style: bold;
+}
+
+/* Add styles for the left panel tab buttons */
+#tab-buttons {
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+    align-horizontal: center;
+}
+
+#tab-buttons Button {
+    width: 1fr;
+    margin: 0;
+    min-width: 7;
+    border-bottom: solid $accent;
+}
+
+/* Tab panel styling */
+.tab-panel {
+    width: 100%;
+    height: 100%;
+    display: block;
+} 

@@ -77,7 +77,6 @@ class InputDialog(ModalDialog):
 
     def compose(self) -> ComposeResult:
         """Compose the input dialog."""
-        from textual.widgets import Input
 
         with Container(classes="modal"):
             yield Static(self.title, id="title")

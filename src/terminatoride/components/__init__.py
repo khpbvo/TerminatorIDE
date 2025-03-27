@@ -1,1 +1,1 @@
-"""Components for TerminatorIDE UI.""" 
+"""Components for TerminatorIDE UI."""

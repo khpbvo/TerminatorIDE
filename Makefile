@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-integration test-coverage lint format check
+.PHONY: test test-unit test-integration test-coverage lint format check pre-commit clean
 
 # Run all tests
 test:
@@ -15,6 +15,7 @@ test-integration:
 # Run tests with coverage report
 test-coverage:
 	python -m pytest --cov=src/terminatoride --cov-report=term --cov-report=html
+	open htmlcov/index.html
 
 # Run linting checks
 lint:
@@ -29,3 +30,13 @@ format:
 
 # Run all code quality checks
 check: lint test
+
+# Run pre-commit hooks on all files
+pre-commit:
+	pre-commit run --all-files
+
+# Clean up temporary files
+clean:
+	rm -rf .pytest_cache htmlcov .coverage coverage.xml
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete

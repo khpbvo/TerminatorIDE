@@ -1,6 +1,6 @@
 """Themes for TerminatorIDE."""
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Base theme colors
 DEFAULT_THEME = {
@@ -31,18 +31,19 @@ DEFAULT_THEME = {
         "warning": "#df8e1d",
         "error": "#d20f39",
         "info": "#1e66f5",
-    }
+    },
 }
+
 
 def get_theme_colors(theme_name: str = "dark") -> Dict[str, Any]:
     """Get the colors for a theme.
-    
+
     Args:
         theme_name: The name of the theme ("dark" or "light").
-        
+
     Returns:
         A dictionary of theme colors.
     """
     if theme_name in DEFAULT_THEME:
         return DEFAULT_THEME[theme_name]
-    return DEFAULT_THEME["dark"]  # Default to dark theme 
+    return DEFAULT_THEME["dark"]  # Default to dark theme

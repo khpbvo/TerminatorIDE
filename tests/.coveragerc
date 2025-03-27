@@ -1,6 +1,6 @@
 [run]
 source = src/terminatoride
-omit = 
+omit =
     */tests/*
     */venv/*
     */site-packages/*

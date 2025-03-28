@@ -3,8 +3,10 @@ Tool implementations for TerminatorIDE agents.
 These tools allow agents to interact with the IDE environment.
 """
 
+import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, List, TypedDict
 
@@ -148,6 +150,36 @@ async def execute_python(ctx: RunContextWrapper[Any], code: str) -> str:
         return "Execution timed out after 5 seconds"
     except Exception as e:
         return f"Error: {str(e)}"
+
+
+@function_tool
+async def lint_python(ctx: RunContextWrapper[Any], code: str) -> str:
+    """
+    Lint Python code using pylint and return the output.
+
+    Args:
+        code: Python code to lint
+
+    Returns:
+        Linting output as a string
+    """
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            temp_path = f.name
+
+        result = subprocess.run(
+            ["pylint", temp_path, "--output-format=json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        issues = json.loads(result.stdout or "[]")
+
+        return json.dumps(issues, indent=2) if issues else "No issues found ✅"
+    except Exception as e:
+        return f"Error running pylint: {str(e)}"
 
 
 @function_tool

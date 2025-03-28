@@ -1,0 +1,42 @@
+DevConsoleScreen {
+    background: surface;
+    /* Adding box-sizing for more predictable layouts */
+    box-sizing: border-box;
+}
+
+.title {
+    background: primary;
+    color: text;
+    padding: 1 2;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 1;
+    /* Ensure full width */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+Static {
+    margin: 0 1;
+    /* Use 1fr instead of 100% for better flexibility in grid layouts */
+    width: 1fr;
+    box-sizing: border-box;
+}
+
+ScrollView {
+    height: 100%;
+    border: solid primary;
+    /* Ensure content fits properly */
+    box-sizing: border-box;
+}
+
+Vertical {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Add a container class for content inside the ScrollView if needed */
+.console-content {
+    padding: 1;
+    width: 100%;
+}

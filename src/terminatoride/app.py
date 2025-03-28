@@ -2,12 +2,16 @@ from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.widgets import Footer, Header, Static
 
+from terminatoride.screens.devconsole import DevConsoleScreen
+
 
 class TerminatorIDE(App):
     """The main TerminatorIDE application."""
 
     TITLE = "TerminatorIDE"
     SUB_TITLE = "AI-Powered Terminal IDE"
+
+    BINDINGS = [("f12", "open_dev_console", "Dev Console")]
 
     CSS = """
     Screen {
@@ -52,6 +56,10 @@ class TerminatorIDE(App):
             yield Static("AI Agent Panel")
 
         yield Footer()
+
+    def action_open_dev_console(self) -> None:
+        """Open the developer console screen."""
+        self.push_screen(DevConsoleScreen())
 
 
 def main():

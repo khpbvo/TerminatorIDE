@@ -7,10 +7,11 @@ import logging
 from typing import Any, List, Optional, Union
 
 from agents import (Agent, RunConfig, Runner, enable_verbose_stdout_logging,
-                    set_default_openai_client, set_default_openai_key, trace)
+                    set_default_openai_client, set_default_openai_key)
 from openai import AsyncOpenAI
 
 from terminatoride.agent.tools import register_tools
+from terminatoride.agent.tracing import trace
 from terminatoride.config import get_config
 
 logger = logging.getLogger(__name__)
@@ -114,7 +115,10 @@ class AgentManager:
                 raise ValueError(f"Agent '{agent}' is not registered")
             agent = self._agents[agent]
 
-        with trace(workflow_name=f"{agent.name} Run"):
+        with trace(
+            workflow_name=f"{agent.name} Run",
+            metadata={"agent_name": agent.name, "model": agent.model},
+        ):
             result = await Runner.run(
                 starting_agent=agent,
                 input=user_input,

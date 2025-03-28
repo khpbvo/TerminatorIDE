@@ -2,7 +2,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.widgets import Footer, Header, Static
 
-from terminatoride.screens.devconsole import DevConsoleScreen
+from src.terminatoride.screens.devconsole import DevConsoleScreen
 
 
 class TerminatorIDE(App):

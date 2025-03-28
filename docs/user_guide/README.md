@@ -16,9 +16,11 @@ This user guide provides detailed information about how to use TerminatorIDE eff
 
 ## Basic Workflow
 
-1. Use the left panel to navigate your file system
-2. Open files in the middle panel editor
-3. Get AI assistance using the right panel
-4. Manage Git operations via the left panel
+1. Use the editor in the middle
+2. Use the left panel to navigate your file system
+3. Open files in the lefy panel editor
+4. Get AI assistance using the right panel
+5. Manage Git operations via the left panel
+6. Remote controle using SSH
 
 For detailed information on each feature, refer to the specific documentation sections listed above.

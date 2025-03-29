@@ -2,7 +2,11 @@ from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.widgets import Footer, Header, Static
 
-from src.terminatoride.screens.devconsole import DevConsoleScreen
+from terminatoride.agent.agent_sdk_trace_bridge import configure_sdk_tracing
+from terminatoride.config import get_config
+from terminatoride.screens.devconsole import (
+    DevConsoleScreen,  # Note the fixed import path
+)
 
 
 class TerminatorIDE(App):
@@ -63,6 +67,18 @@ class TerminatorIDE(App):
 
 
 def main():
+    # Get configuration
+    config = get_config()
+
+    # Configure tracing if enabled
+    if getattr(config.app, "enable_tracing", True):
+        try:
+            configure_sdk_tracing()
+            print("SDK tracing configured successfully")
+        except Exception as e:
+            print(f"Warning: Failed to configure SDK tracing: {e}")
+
+    # Create and run the app
     app = TerminatorIDE()
     app.run()
 

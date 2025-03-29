@@ -6,12 +6,18 @@ Handles agent initialization, configuration, and execution.
 import logging
 from typing import Any, List, Optional, Union
 
-from agents import (Agent, RunConfig, Runner, enable_verbose_stdout_logging,
-                    set_default_openai_client, set_default_openai_key)
+from agents import (
+    Agent,
+    RunConfig,
+    Runner,
+    enable_verbose_stdout_logging,
+    set_default_openai_client,
+    set_default_openai_key,
+)
 from openai import AsyncOpenAI
 
+from terminatoride.agent.agent_sdk_trace_bridge import trace_agent_run
 from terminatoride.agent.tools import register_tools
-from terminatoride.agent.tracing import trace
 from terminatoride.config import get_config
 
 logger = logging.getLogger(__name__)
@@ -113,20 +119,21 @@ class AgentManager:
         if isinstance(agent, str):
             if agent not in self._agents:
                 raise ValueError(f"Agent '{agent}' is not registered")
-            agent = self._agents[agent]
+            agent_instance = self._agents[agent]
+        else:
+            agent_instance = agent
 
-        with trace(
-            workflow_name=f"{agent.name} Run",
-            metadata={"agent_name": agent.name, "model": agent.model},
-        ):
-            result = await Runner.run(
-                starting_agent=agent,
+        # Use the trace_agent_run decorator for detailed tracing
+        @trace_agent_run(agent_instance.name, getattr(agent_instance, "model", None))
+        async def _run_agent():
+            return await Runner.run(
+                starting_agent=agent_instance,
                 input=user_input,
                 context=context,
                 run_config=run_config,
             )
 
-        return result
+        return await _run_agent()
 
     def get_agent(self, name: str) -> Optional[Agent]:
         """Get a registered agent by name."""

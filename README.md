@@ -28,9 +28,9 @@ TerminatorIDE is a powerful, terminal-based integrated development environment t
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. Install dependencies:
+3. Install the package in development mode:
    ```
-   pip install -r requirements.txt
+   pip install -e .
    ```
 
 4. Configure your OpenAI API key:
@@ -42,7 +42,7 @@ TerminatorIDE is a powerful, terminal-based integrated development environment t
 
 Run the application:
 ```
-python -m src.terminatoride.app
+python -m terminatoride.app
 ```
 
 ## Development

@@ -17,7 +17,7 @@
 - [x] Implement model selection mechanism (o3-mini.)
 - [x] Create centralized context management for agents
 - [x] Set up proper error handling and rate limiting
-- [ ] Implement tracing for debugging agent behavior
+- [-] Implement tracing for debugging agent behavior
 - [ ] Create structured output types using Pydantic models
 - [ ] Set up function tools for IDE operations
 - [ ] Implement streaming capabilities for real-time responses

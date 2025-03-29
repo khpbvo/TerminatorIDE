@@ -4,6 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 
 @dataclass
 class OpenAIConfig:
@@ -30,10 +35,10 @@ class Config:
     @classmethod
     def from_env(cls) -> "Config":
         """Load configuration from environment variables."""
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
+        if "OPENAI_API_KEY" not in os.environ:
             raise ValueError("OPENAI_API_KEY environment variable is required")
 
+        api_key = os.environ.get("OPENAI_API_KEY")
         return cls(
             openai=OpenAIConfig(
                 api_key=api_key,

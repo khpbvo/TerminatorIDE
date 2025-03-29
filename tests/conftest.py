@@ -13,7 +13,11 @@ sys.path.insert(0, str(src_path))
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_env():
     """Set up test environment variables."""
-    os.environ["OPENAI_API_KEY"] = "test_api_key"
+    # Only set a test API key if not already set in environment
+    # This allows integration tests to use a real key from .env
+    if "OPENAI_API_KEY" not in os.environ:
+        os.environ["OPENAI_API_KEY"] = "test_api_key"
+
     os.environ["TERMINATOR_THEME"] = "test"
     os.environ["TERMINATOR_EDITOR"] = "nano"
     os.environ["TERMINATOR_SHOW_LINE_NUMBERS"] = "True"

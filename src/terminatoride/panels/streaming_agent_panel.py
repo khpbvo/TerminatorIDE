@@ -8,7 +8,7 @@ import asyncio
 from textual.app import ComposeResult
 from textual.containers import Container, ScrollableContainer, Vertical
 from textual.message import Message
-from textual.widgets import Button, Checkbox, Input, Label, LoadingIndicator, Static
+from textual.widgets import Button, Input, Label, LoadingIndicator, Static
 
 from terminatoride.agent.context import AgentContext
 from terminatoride.agent_streaming import get_streaming_agent
@@ -38,9 +38,6 @@ class StreamingAgentPanel(Container):
             yield Vertical(id="conversation")
 
         with Container(id="input-container"):
-            with Container(id="streaming-options"):
-                yield Checkbox("Enable Streaming", id="streaming-toggle", value=True)
-
             yield Input(placeholder="Ask the AI assistant...", id="agent-input")
             yield Button("Send", id="send-button", variant="primary")
 
@@ -81,8 +78,8 @@ class StreamingAgentPanel(Container):
         # Get current file context if available
         self._update_context()
 
-        # Check if streaming is enabled
-        streaming_enabled = self.query_one("#streaming-toggle").value
+        # Always use streaming (removed toggle check)
+        streaming_enabled = True
 
         # Processing indicator
         if streaming_enabled:
@@ -92,7 +89,7 @@ class StreamingAgentPanel(Container):
             )
             conversation.mount(self.current_response_widget)
         else:
-            # For non-streaming, show a loading indicator
+            # This code path is no longer used but kept for potential future use
             loading = LoadingIndicator(classes="agent-thinking")
             conversation.mount(loading)
             self.current_response_widget = None

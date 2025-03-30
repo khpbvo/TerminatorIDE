@@ -1,122 +1,127 @@
 /* Main layout grid */
-Screen {
-    layout: grid;
-    grid-size: 3;
-    grid-columns: 1fr 2fr 1fr;
-    grid-rows: 1fr 25;
-    background: $surface;
+.screen {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    grid-template-rows: 1fr 25fr;
+    background: var(--surface);
 }
 
 /* Panel styling */
 #left-panel {
     width: 100%;
     height: 100%;
-    border: solid $accent;
-    background: $surface;
-    color: $text;
-    padding: 1;
+    border: 1px solid var(--accent);
+    background: var(--surface);
+    color: var(--text);
+    padding: 1px;
 }
-
 #editor-panel {
     width: 100%;
     height: 100%;
-    border: solid $primary;
-    background: $surface-darken-1;
-    color: $text;
-    padding: 1;
+    border: 1px solid var(--primary);
+    background: var(--surface-darken-1);
+    color: var(--text);
+    padding: 1px;
 }
 
 #agent-panel {
     width: 100%;
     height: 100%;
-    border: solid $secondary;
-    background: $surface;
-    color: $text;
-    padding: 1;
+    border: 1px solid var(--secondary);
+    background: var(--surface);
+    color: var(--text);
+    padding: 1px;
 }
 
 /* Status bar styling */
 #status-bar {
-    height: 1;
-    dock: bottom;
+    height: 1em;
+    position: fixed;
+    bottom: 0;
     width: 100%;
-    layout: horizontal;
-    background: $primary;
-    color: $text;
-    padding: 0 1;
+    background: var(--primary);
+    color: var(--text);
+    padding: 0 1px;
 }
-
 #status-message {
     width: 30%;
-    height: 1;
-    content-align: left middle;
+    height: 1em;
+    text-align: left;
+    vertical-align: middle;
 }
 
 #cursor-position {
     width: 40%;
-    height: 1;
-    content-align: center middle;
+    height: 1em;
+    text-align: center;
+    vertical-align: middle;
 }
 
 #file-encoding {
     width: 30%;
-    height: 1;
-    content-align: right middle;
+    height: 1em;
+    text-align: right;
+    vertical-align: middle;
 }
 
 /* Focus styling */
 #left-panel:focus, #editor-panel:focus, #agent-panel:focus {
-    border: double $accent;
+    border: 2px double var(--accent);
 }
 
-/* Responsive layout adjustments - using simple class-based approach for Textual */
-.narrow-screen Screen {
-    grid-columns: 1fr 3fr;
+/* Responsive layout adjustments */
+@media (max-width: 1000px) {
+    .screen {
+        grid-template-columns: 1fr 3fr;
+    }
+
+    #agent-panel {
+        display: none;
+    }
 }
 
-.narrow-screen #agent-panel {
-    display: none;
-}
+@media (max-width: 800px) {
+    .screen {
+        grid-template-columns: 1fr;
+    }
 
-.very-narrow-screen Screen {
-    grid-columns: 1fr;
-}
-
-.very-narrow-screen #left-panel, .very-narrow-screen #agent-panel {
-    display: none;
+    #left-panel, #agent-panel {
+        display: none;
+    }
 }
 
 /* Modal dialog styling */
 .modal {
     width: 60%;
     height: 60%;
-    border: thick $primary;
-    background: $surface;
-    padding: 1;
+    border: 3px solid var(--primary);
+    background: var(--surface);
+    padding: 1px;
 }
 
 .modal #title {
-    background: $primary;
-    color: $text;
-    padding: 1;
+    background: var(--primary);
+    color: var(--text);
+    padding: 1px;
     text-align: center;
+    font-weight: bold;
 }
 
 .modal #content {
-    padding: 1;
+    padding: 1px;
 }
 
 /* Notification styling */
 .notification {
     width: 40%;
-    dock: bottom;
-    layer: notification;
-    background: $accent;
-    color: $text;
-    height: auto;
-    padding: 1;
-    margin: 2;
-    border: solid $primary;
+    position: fixed;
+    bottom: 0;
+    z-index: 1000;
+    background: var(--accent);
+    color: var(--text);
+    padding: 1px;
+    margin: 2px;
+    border: 1px solid var(--primary);
     text-align: center;
 }
 
@@ -124,53 +129,52 @@ Screen {
 #help-container {
     width: 80%;
     height: 80%;
-    border: thick $primary;
-    background: $surface;
-    padding: 1;
-    margin: 2 10;
+    border: 2px solid var(--primary);
+    background: var(--surface);
+    padding: 1px;
+    margin: 2px 10px;
 }
 
 #help-title {
     text-align: center;
-    background: $primary;
-    color: $text;
-    padding: 1;
-    text-style: bold;
+    background: var(--primary);
+    color: var(--text);
+    padding: 1px;
+    font-weight: bold;
     width: 100%;
 }
 
 #shortcut-grid {
-    layout: grid;
-    grid-size: 3;
-    grid-columns: 20 20 1fr;
-    margin: 1;
-    height: auto;
+    display: grid;
+    grid-template-columns: 20% 20% 1fr;
+    margin: 1px;
     width: 100%;
     border: none;
 }
 
 .category {
-    text-style: bold;
-    color: $accent;
-    column-span: 3;
-    margin-top: 1;
+    font-weight: bold;
+    color: var(--accent);
+    grid-column: span 3;
+    margin-top: 1px;
 }
 
 .shortcut {
-    color: $secondary;
-    text-style: bold;
+    color: var(--secondary);
+    font-weight: bold;
 }
 
 .description {
-    color: $text;
+    color: var(--text);
 }
 
 #help-footer {
-    dock: bottom;
-    height: 3;
+    position: fixed;
+    bottom: 0;
+    height: 3em;
     width: 100%;
-    content-align-horizontal: center;
-    padding: 1;
+    text-align: center;
+    padding: 1px;
 }
 
 /* File Explorer styling */
@@ -181,26 +185,26 @@ Screen {
 }
 
 #file-explorer-title {
-    background: $primary-darken-2;
-    color: $text;
+    background: var(--primary-darken-2);
+    color: var(--text);
     text-align: center;
 }
 
 #file-search {
-    margin: 0 0 1 0;
-    height: 1;
+    margin: 0 0 1px 0;
+    height: 1em;
     width: 100%;
 }
 
 #file-tree-container {
-    height: 1fr;
+    height: 100%;
     width: 100%;
-    border: solid $primary;
-    margin-top: 1;
+    border: 1px solid var(--primary);
+    margin-top: 1px;
 }
 
 #file-tree {
-    padding: 0 1;
+    padding: 0 1px;
 }
 
 /* Left Panel Tab Styling */
@@ -215,55 +219,56 @@ Screen {
 
 #left-panel-tabs > Tabs {
     height: auto;
-    dock: top;
+    position: sticky;
+    top: 0;
 }
 
 #left-panel-tabs > Tabs > .tab {
-    padding: 0 2;
-    height: 1;
+    padding: 0 2px;
+    height: 1em;
     width: auto;
-    text-style: bold;
+    font-weight: bold;
 }
 
 #left-panel-tabs > Tabs > .tab.--active {
-    background: $primary;
-    color: $text;
+    background: var(--primary);
+    color: var(--text);
 }
 
-/* Add these styles for the file explorer button bar */
+/* File explorer button bar */
 #button-bar {
     height: auto;
     width: 100%;
-    margin: 0 0 1 0;
-    align-horizontal: center;
+    margin: 0 0 1px 0;
+    text-align: center;
 }
 
 #button-bar Button {
-    margin: 0 1;
-    min-width: 8;
-    padding: 0 1;
+    margin: 0 1px;
+    min-width: 8em;
+    padding: 0 1px;
 }
 
 /* Style the selected tree node more prominently */
 Tree .tree--cursor {
-    background: $primary;
-    color: $text;
-    text-style: bold;
+    background: var(--primary);
+    color: var(--text);
+    font-weight: bold;
 }
 
-/* Add styles for the left panel tab buttons */
+/* Left panel tab buttons */
 #tab-buttons {
     width: 100%;
     height: auto;
-    margin: 0 0 1 0;
-    align-horizontal: center;
+    margin: 0 0 1px 0;
+    text-align: center;
 }
 
 #tab-buttons Button {
-    width: 1fr;
+    flex: 1;
     margin: 0;
-    min-width: 7;
-    border-bottom: solid $accent;
+    min-width: 7em;
+    border-bottom: 1px solid var(--accent);
 }
 
 /* Tab panel styling */
@@ -271,4 +276,131 @@ Tree .tree--cursor {
     width: 100%;
     height: 100%;
     display: block;
+}
+
+/* Streaming Agent Panel Specific Styles */
+/* Conversation Container */
+#conversation-container {
+    height: 100%;
+    width: 100%;
+    border: 1px solid var(--primary);
+    margin-bottom: 1px;
+    padding: 0;
+}
+
+#conversation {
+    width: 100%;
+    padding: 1px;
+}
+
+/* Agent Input Area */
+#input-container {
+    height: auto;
+    width: 100%;
+    margin-top: 1px;
+}
+
+#agent-input {
+    border: 1px solid var(--primary);
+    margin-bottom: 1px;
+}
+
+#send-button {
+    margin-left: 1px;
+    min-width: 10em;
+}
+
+/* Message Styling */
+.agent-message {
+    background: var(--surface-darken-1);
+    padding: 1px 2px;
+    margin: 1px 0;
+    border-left: 3px solid var(--secondary);
+    word-wrap: break-word;
+    color: var(--text);
+}
+
+.user-message {
+    background: var(--primary-darken-3);
+    padding: 1px 2px;
+    margin: 1px 0;
+    border-left: 3px solid var(--primary);
+    word-wrap: break-word;
+    color: var(--text);
+}
+
+/* Tool Call and Result Styling */
+.agent-tool-call {
+    background: var(--secondary-darken-2);
+    padding: 1px 2px;
+    margin: 1px 0;
+    border-left: 3px solid var(--secondary-lighten-1);
+    word-wrap: break-word;
+    color: var(--text);
+}
+
+.agent-tool-result {
+    background: var(--secondary-darken-3);
+    padding: 1px 2px;
+    margin: 1px 0;
+    border-left: 3px solid var(--secondary-lighten-2);
+    word-wrap: break-word;
+    color: var(--text);
+}
+
+/* Handoff Styling */
+.agent-handoff {
+    background: var(--primary-darken-2);
+    padding: 1px 2px;
+    margin: 1px 0;
+    border-left: 3px solid var(--primary-lighten-1);
+    word-wrap: break-word;
+    color: var(--text);
+}
+
+/* Error Message Styling */
+.agent-error {
+    background: var(--error-darken-1);
+    padding: 1px 2px;
+    margin: 1px 0;
+    border-left: 3px solid var(--error);
+    word-wrap: break-word;
+    color: var(--text);
+}
+
+/* Loading Indicator */
+.agent-thinking {
+    margin: 1px 0;
+    padding: 1px 2px;
+}
+
+/* Streaming Options */
+#streaming-options {
+    margin: 1px 0;
+    padding: 0 2px;
+}
+
+/* Cursor animation for streaming indication */
+@keyframes cursor-blink {
+    0% { color: transparent; }
+    50% { color: var(--text); }
+    100% { color: transparent; }
+}
+
+.streaming-cursor {
+    display: inline-block;
+    margin-left: 0.2em;
+    animation: cursor-blink 1s infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .agent-message, .user-message, .agent-tool-call, .agent-tool-result, .agent-handoff, .agent-error {
+        padding: 1px;
+        margin: 0.5em 0;
+    }
+
+    #send-button {
+        min-width: 8em;
+    }
 }

@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from terminatoride.agent.context import AgentContext, FileContext
-from terminatoride.agents.openai_agent import OpenAIAgent, get_openai_agent
+from terminatoride.agents.openai_agent import OpenAIAgent
 from terminatoride.app import TerminatorIDE
 
 
@@ -69,15 +69,26 @@ class TestOpenAIAgentIntegration:
     @pytest.mark.asyncio
     async def test_agent_singleton(self, setup_env, mock_runner):
         """Test that get_openai_agent returns a singleton instance."""
-        with patch("terminatoride.agents.openai_agent.OpenAIAgent") as mock_agent_class:
-            mock_agent_class.return_value = MagicMock()
+        import terminatoride.agents.openai_agent as oa
+
+        oa._default_agent = None  # Reset the correct singleton variable
+
+        # Patch where OpenAIAgent is DEFINED, not where it's imported
+        with patch(
+            "terminatoride.agents.openai_agent.OpenAIAgent", autospec=True
+        ) as mock_agent_class:
+            mock_agent = MagicMock()
+            mock_agent_class.return_value = mock_agent
 
             # First call should create a new instance
-            agent1 = get_openai_agent()
+            agent1 = (
+                oa.get_openai_agent()
+            )  # Use fully qualified call through the module
+
             mock_agent_class.assert_called_once()
 
             # Second call should return the same instance
-            agent2 = get_openai_agent()
+            agent2 = oa.get_openai_agent()
             assert mock_agent_class.call_count == 1
             assert agent1 is agent2
 

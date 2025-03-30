@@ -8,7 +8,7 @@ import asyncio
 from textual.app import ComposeResult
 from textual.containers import Container, ScrollableContainer, Vertical
 from textual.message import Message
-from textual.widgets import Button, Checkbox, Input, Label, Loading, Static
+from textual.widgets import Button, Checkbox, Input, Label, LoadingIndicator, Static
 
 from terminatoride.agent.context import AgentContext
 from terminatoride.agent_streaming import get_streaming_agent
@@ -93,7 +93,7 @@ class StreamingAgentPanel(Container):
             conversation.mount(self.current_response_widget)
         else:
             # For non-streaming, show a loading indicator
-            loading = Loading(classes="agent-thinking")
+            loading = LoadingIndicator(classes="agent-thinking")
             conversation.mount(loading)
             self.current_response_widget = None
 
@@ -134,7 +134,7 @@ class StreamingAgentPanel(Container):
             await self._scroll_to_bottom()
 
     async def _process_standard_response(
-        self, user_message: str, loading_indicator: Loading
+        self, user_message: str, loading_indicator: LoadingIndicator
     ) -> None:
         """Process the agent response without streaming."""
         try:
@@ -165,7 +165,7 @@ class StreamingAgentPanel(Container):
             conversation.mount(Static(f"Error: {str(e)}", classes="agent-error"))
             await self._scroll_to_bottom()
 
-    def _handle_text_delta(self, delta: str) -> None:
+    async def _handle_text_delta(self, delta: str) -> None:
         """Handle text delta events from streaming."""
         if self.current_response_widget:
             # Get the current text
@@ -179,10 +179,10 @@ class StreamingAgentPanel(Container):
 
             # Update the widget with the new text
             self.current_response_widget.update(new_text)
-            # Run the coroutine to scroll to bottom
-            asyncio.create_task(self._scroll_to_bottom())
+            # Scroll to bottom
+            await self._scroll_to_bottom()
 
-    def _handle_tool_call(self, tool_info: dict) -> None:
+    async def _handle_tool_call(self, tool_info: dict) -> None:
         """Handle tool call events."""
         conversation = self.query_one("#conversation")
         conversation.mount(
@@ -191,10 +191,10 @@ class StreamingAgentPanel(Container):
                 classes="agent-tool-call",
             )
         )
-        # Run the coroutine to scroll to bottom
-        asyncio.create_task(self._scroll_to_bottom())
+        # Scroll to bottom
+        await self._scroll_to_bottom()
 
-    def _handle_tool_result(self, result_info: dict) -> None:
+    async def _handle_tool_result(self, result_info: dict) -> None:
         """Handle tool result events."""
         conversation = self.query_one("#conversation")
         conversation.mount(
@@ -203,10 +203,10 @@ class StreamingAgentPanel(Container):
                 classes="agent-tool-result",
             )
         )
-        # Run the coroutine to scroll to bottom
-        asyncio.create_task(self._scroll_to_bottom())
+        # Scroll to bottom
+        await self._scroll_to_bottom()
 
-    def _handle_handoff(self, handoff_info: dict) -> None:
+    async def _handle_handoff(self, handoff_info: dict) -> None:
         """Handle handoff events."""
         conversation = self.query_one("#conversation")
         conversation.mount(
@@ -215,8 +215,8 @@ class StreamingAgentPanel(Container):
                 classes="agent-handoff",
             )
         )
-        # Run the coroutine to scroll to bottom
-        asyncio.create_task(self._scroll_to_bottom())
+        # Scroll to bottom
+        await self._scroll_to_bottom()
 
     async def _scroll_to_bottom(self) -> None:
         """Scroll the conversation to the bottom."""

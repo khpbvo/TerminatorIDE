@@ -20,7 +20,7 @@
 - [-] Implement tracing for debugging agent behavior
 - [x] Create structured output types using Pydantic models
 - [x] Set up function tools for IDE operations
-- [ ] Implement streaming capabilities for real-time responses
+- [x] Implement streaming capabilities for real-time responses
 - [ ] Design guardrails for safe agent interactions
 - [ ] Create agent handoff system for specialized tasks
 

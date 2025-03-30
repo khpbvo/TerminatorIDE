@@ -5,8 +5,8 @@ from textual.widgets import Button, Footer, Header, Static
 from terminatoride.agent.agent_sdk_trace_bridge import configure_sdk_tracing
 from terminatoride.config import get_config
 from terminatoride.panels.left_panel import LeftPanel
+from terminatoride.panels.streaming_agent_panel import StreamingAgentPanel
 from terminatoride.screens.devconsole import DevConsoleScreen
-from terminatoride.streaming_agent_panel import StreamingAgentPanel
 
 
 class TerminatorIDE(App):

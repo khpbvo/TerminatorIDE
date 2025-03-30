@@ -6,7 +6,7 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
-        "textual",
+        "-e ." "pre-commit" "textual",
         "openai",
         "openai-agents",
         "pyte",

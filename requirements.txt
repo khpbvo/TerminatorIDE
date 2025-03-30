@@ -1,6 +1,7 @@
+pre-commit
 # Core UI framework
 textual
-"textual[syntax]"
+textual[syntax]
 
 # OpenAI integration
 openai

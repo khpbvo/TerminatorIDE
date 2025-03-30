@@ -146,8 +146,7 @@ def complex_function():
 
         # Check suggestion details
         assert analysis.suggestions[0].line_number == 10
-        assert "unused variable" in analysis.suggestions[0].explanation.lower()
-
+        assert "never used" in analysis.suggestions[0].explanation.lower()
         # Check summary
         assert "needs improvement" in analysis.summary
 

@@ -2,7 +2,7 @@
 Tests for structured output types integration with AgentManager.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agents import RunResult
@@ -126,11 +126,13 @@ class TestStructuredOutputs:
 
         # Configure mocks
         with patch("terminatoride.agent.agent_manager.Runner") as mock_runner:
-            # Set up the mock to return our result
-            mock_runner.run = MagicMock(return_value=mock_result)
+            # Set up the mock to return our result - make it awaitable
+            mock_runner.run = AsyncMock(return_value=mock_result)
 
             # Set the mock_agent's output_type to CodeAnalysisResult
             mock_agent.output_type = CodeAnalysisResult
+            # Set handoffs property to an empty list to avoid NoneType error
+            mock_agent.handoffs = []
             agent_manager._agents["Code Analyzer"] = mock_agent
 
             # Run the agent

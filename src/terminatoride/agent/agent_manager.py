@@ -4,7 +4,7 @@ Handles agent initialization, configuration, and execution.
 """
 
 import logging
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 from agents import (
     Agent,
@@ -15,6 +15,7 @@ from agents import (
     set_default_openai_key,
 )
 from openai import AsyncOpenAI
+from pydantic import BaseModel
 
 from terminatoride.agent.agent_sdk_trace_bridge import trace_agent_run
 from terminatoride.agent.tools import register_tools
@@ -62,7 +63,7 @@ class AgentManager:
         model: Optional[str] = None,
         tools: Optional[List] = None,
         handoffs: Optional[List] = None,
-        output_type: Optional[Any] = None,
+        output_type: Optional[Type[BaseModel]] = None,
     ) -> Agent:
         """
         Create and register a new agent.
@@ -95,6 +96,43 @@ class AgentManager:
 
         # Register the agent for future reference
         self._agents[name] = agent
+        return agent
+
+    def create_specialized_agent(
+        self,
+        name: str,
+        instructions: str,
+        specialty: str,
+        output_type: Type[BaseModel],
+        model: Optional[str] = None,
+        tools: Optional[List] = None,
+    ) -> Agent:
+        """
+        Create a specialized agent with a structured output type.
+
+        Args:
+            name: The name of the agent
+            instructions: Prompt/instructions for the agent
+            specialty: The agent's area of expertise
+            output_type: Pydantic model for structured output
+            model: Optional model to use, defaults to config
+            tools: Optional list of tools to provide to the agent
+
+        Returns:
+            The created specialized Agent instance
+        """
+        agent = self.create_agent(
+            name=name,
+            instructions=instructions,
+            model=model,
+            tools=tools,
+            output_type=output_type,
+        )
+
+        # Add metadata about the specialty
+        agent.metadata = {"specialty": specialty}
+
+        logger.info(f"Created specialized agent '{name}' for {specialty}")
         return agent
 
     async def run_agent(
@@ -142,3 +180,23 @@ class AgentManager:
     def list_agents(self) -> List[str]:
         """List all registered agent names."""
         return list(self._agents.keys())
+
+    def list_specialized_agents(self) -> List[Dict[str, str]]:
+        """List all specialized agents with their specialties."""
+        result = []
+        for name, agent in self._agents.items():
+            if (
+                hasattr(agent, "metadata")
+                and agent.metadata
+                and "specialty" in agent.metadata
+            ):
+                result.append(
+                    {
+                        "name": name,
+                        "specialty": agent.metadata["specialty"],
+                        "output_type": (
+                            agent.output_type.__name__ if agent.output_type else None
+                        ),
+                    }
+                )
+        return result

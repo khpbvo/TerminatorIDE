@@ -3,8 +3,7 @@ Agent initialization module for TerminatorIDE.
 """
 
 from terminatoride.agent.agent_manager import AgentManager
-from terminatoride.agent.context import (AgentContext, FileContext,
-                                         ProjectContext)
+from terminatoride.agent.context import AgentContext, FileContext, ProjectContext
 from terminatoride.agent.models import ModelSelector, ModelSettings, ModelType
 from terminatoride.agent.tools import register_tools
 

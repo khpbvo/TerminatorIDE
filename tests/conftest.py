@@ -1,12 +1,33 @@
 import os
+import site
 import sys
 from pathlib import Path
 
 import pytest
 
+
+# Try to fix the import issue early
+def pytest_configure(config):
+    """Configure pytest and try to fix imports."""
+    # Get site-packages directories and add them to path
+    site_packages = site.getsitepackages()
+    for sp in site_packages:
+        if sp not in sys.path:
+            sys.path.insert(0, sp)
+
+    # Try to preload the problematic module
+    try:
+        import importlib
+
+        importlib.import_module("agents")
+        print("Successfully pre-loaded agents module")
+    except ImportError as e:
+        print(f"Failed to pre-load agents module: {e}")
+
+
 # Add the src directory to the Python path
 src_path = Path(__file__).parent.parent / "src"
-sys.path.insert(0, str(src_path))
+sys.path.insert(0, str(src_path))  # Add this line
 
 
 # Set up test environment variables

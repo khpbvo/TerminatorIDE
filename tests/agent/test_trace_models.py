@@ -7,16 +7,20 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from terminatoride.agent.trace_models import (AgentTraceEvent, BaseTraceEvent,
-                                              CustomTraceEvent,
-                                              GuardrailTraceEvent,
-                                              HandoffTraceEvent,
-                                              LLMGenerationTraceEvent,
-                                              ToolCallTraceEvent,
-                                              TraceEventType, TraceStatus,
-                                              WorkflowTraceEvent,
-                                              create_agent_trace,
-                                              create_workflow_trace)
+from terminatoride.agent.trace_models import (
+    AgentTraceEvent,
+    BaseTraceEvent,
+    CustomTraceEvent,
+    GuardrailTraceEvent,
+    HandoffTraceEvent,
+    LLMGenerationTraceEvent,
+    ToolCallTraceEvent,
+    TraceEventType,
+    TraceStatus,
+    WorkflowTraceEvent,
+    create_agent_trace,
+    create_workflow_trace,
+)
 
 
 class TestTraceModels:

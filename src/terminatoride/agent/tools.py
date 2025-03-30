@@ -13,6 +13,7 @@ from typing import Any, List, TypedDict
 from agents import RunContextWrapper, function_tool
 
 from terminatoride.agent.tracing import trace
+from terminatoride.ide.tools_extension import IDE_TOOLS_AVAILABLE, extend_tools
 
 
 class FileInfo(TypedDict):
@@ -224,4 +225,8 @@ async def get_current_file(ctx: RunContextWrapper[Any]) -> FileInfo:
 
 def register_tools():
     """Register and return all available tools."""
-    return [read_file, write_file, list_directory, execute_python, get_current_file]
+    tools = [read_file, write_file, list_directory, execute_python, get_current_file]
+    if IDE_TOOLS_AVAILABLE:
+        tools = extend_tools(tools)
+
+    return tools

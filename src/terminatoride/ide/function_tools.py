@@ -14,7 +14,7 @@ from agents import RunContextWrapper, function_tool
 
 from terminatoride.agent.context import AgentContext
 from terminatoride.agent.tracing import trace
-from terminatoride.utils.git_helpers import git_add, git_commit, git_init, is_git_repo
+from terminatoride.utils.git_helpers import git_add, git_init, is_git_repo
 
 # File and Project Navigation Tools
 
@@ -55,14 +55,14 @@ async def navigate_to_file(ctx: RunContextWrapper[AgentContext], path: str) -> s
 
 @function_tool
 async def create_new_file(
-    ctx: RunContextWrapper[AgentContext], path: str, content: str = ""
+    ctx: RunContextWrapper[AgentContext], path: str, content: str
 ) -> str:
     """
-    Create a new file with optional initial content.
+    Create a new file with initial content.
 
     Args:
         path: Path where the new file should be created
-        content: Optional initial content for the file
+        content: Initial content for the file (can be empty string)
 
     Returns:
         Success or error message
@@ -362,20 +362,14 @@ async def move_cursor(ctx: RunContextWrapper[AgentContext], position: int) -> st
 async def find_in_file(
     ctx: RunContextWrapper[AgentContext],
     search_text: str,
-    case_sensitive: bool = False,
-    whole_word: bool = False,
+    case_sensitive: Optional[bool],  # No default value
+    whole_word: Optional[bool],  # No default value
 ) -> str:
-    """
-    Find occurrences of text in the current file.
+    """Find occurrences of text in the current file."""
+    # Set defaults inside the function
+    case_sensitive = case_sensitive if case_sensitive is not None else False
+    whole_word = whole_word if whole_word is not None else False
 
-    Args:
-        search_text: Text to search for
-        case_sensitive: Whether the search should be case-sensitive
-        whole_word: Whether to match whole words only
-
-    Returns:
-        Results with line numbers and matched lines
-    """
     with trace(workflow_name="Tool: find_in_file", metadata={"search": search_text}):
         try:
             if (
@@ -421,9 +415,9 @@ async def find_in_file(
 async def find_in_project(
     ctx: RunContextWrapper[AgentContext],
     search_text: str,
-    file_pattern: str = "*.*",
-    case_sensitive: bool = False,
-    exclude_patterns: Optional[List[str]] = None,
+    file_pattern: Optional[str],
+    case_sensitive: Optional[bool],
+    exclude_patterns: Optional[List[str]],
 ) -> str:
     """
     Find occurrences of text across files in the project.
@@ -437,6 +431,10 @@ async def find_in_project(
     Returns:
         Results with file paths, line numbers, and matched lines
     """
+    # Set defaults inside the function
+    file_pattern = file_pattern if file_pattern is not None else "*.*"
+    case_sensitive = case_sensitive if case_sensitive is not None else False
+
     with trace(
         workflow_name="Tool: find_in_project",
         metadata={"search": search_text, "pattern": file_pattern},
@@ -720,7 +718,7 @@ async def create_directory(ctx: RunContextWrapper[AgentContext], path: str) -> s
 async def run_command(
     ctx: RunContextWrapper[AgentContext],
     command: str,
-    working_dir: Optional[str] = None,
+    working_dir: Optional[str],
 ) -> str:
     """
     Run a shell command and return the output.
@@ -827,18 +825,21 @@ async def rename_file(
 
 @function_tool
 async def delete_file(
-    ctx: RunContextWrapper[AgentContext], path: str, recursive: bool = False
+    ctx: RunContextWrapper[AgentContext], path: str, recursive: Optional[bool]
 ) -> str:
     """
     Delete a file or directory.
 
     Args:
         path: Path to the file or directory to delete
-        recursive: Whether to recursively delete directories
+        recursive: Whether to recursively delete directories (default: False)
 
     Returns:
         Success or error message
     """
+    # Set default inside the function
+    recursive = recursive if recursive is not None else False
+
     with trace(
         workflow_name="Tool: delete_file",
         metadata={"path": path, "recursive": recursive},
@@ -912,7 +913,7 @@ def register_ide_tools() -> List:
         # Git
         git_status,
         git_stage_file,
-        git_commit,
+        # git_commit is commented out above, so don't include it here
         git_initialize,
         # Project Management
         create_directory,

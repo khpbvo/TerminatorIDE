@@ -99,38 +99,224 @@ class StreamingAgentPanel(Container):
 
         # Process in background to keep UI responsive
         if streaming_enabled:
-            self.app.run_worker(self._process_streaming_response(user_message))
+            # Ensure we're properly running the coroutine
+            async def run_streaming():
+                try:
+                    await self._process_streaming_response(user_message)
+                except Exception as e:
+                    print(f"Error in streaming worker: {e}")
+                    conversation = self.query_one("#conversation")
+                    conversation.mount(
+                        Static(f"Error: {str(e)}", classes="agent-error")
+                    )
+                    await self._scroll_to_bottom()
+
+            self.app.run_worker(run_streaming())
         else:
-            self.app.run_worker(self._process_standard_response(user_message, loading))
+            # Ensure we're properly running the coroutine
+            async def run_standard():
+                try:
+                    await self._process_standard_response(user_message, loading)
+                except Exception as e:
+                    print(f"Error in standard worker: {e}")
+                    conversation = self.query_one("#conversation")
+                    conversation.mount(
+                        Static(f"Error: {str(e)}", classes="agent-error")
+                    )
+                    await self._scroll_to_bottom()
+
+            self.app.run_worker(run_standard())
 
         # Auto-scroll to bottom
         await self._scroll_to_bottom()
 
     async def _process_streaming_response(self, user_message: str) -> None:
-        """Process the streaming agent response."""
+        """Process the streaming response from agent."""
         try:
-            # Get streaming response from agent
-            await self.streaming_agent.generate_streaming_response(
-                user_message,
-                self.context,
-                on_text_delta=self._handle_text_delta,
-                on_tool_call=self._handle_tool_call,
-                on_tool_result=self._handle_tool_result,
-                on_handoff=self._handle_handoff,
+            # Add debug message to conversation
+            conversation = self.query_one("#conversation")
+            debug_widget = Static(
+                "Debug: Starting streaming request...", classes="debug-message"
             )
+            conversation.mount(debug_widget)
+
+            # Create much simpler wrapper callbacks
+            async def debug_text_delta(delta: str):
+                # First update the debug widget
+                debug_widget.update("Receiving text...")
+
+                print(f"DEBUG: Received delta: '{delta[:50]}...'")
+
+                # Make sure we have a string to work with
+                if delta is None:
+                    delta = ""
+
+                # Ensure we have a valid string representation
+                if not isinstance(delta, str):
+                    try:
+                        delta = str(delta)
+                    except Exception as err:
+                        print(f"ERROR converting delta to string: {err}")
+                        delta = "[Error converting content]"
+
+                # Then update the main response widget
+                try:
+                    if self.current_response_widget:
+                        current_text = self.current_response_widget.renderable
+                        new_text = current_text + delta
+                        print(
+                            f"Updating response widget from {len(current_text)} to {len(new_text)} chars"
+                        )
+                        self.current_response_widget.update(new_text)
+                except Exception as err:
+                    print(f"ERROR updating response widget: {err}")
+                    # Create a new widget if update fails
+                    try:
+                        conversation = self.query_one("#conversation")
+                        self.current_response_widget = Static(
+                            f"Assistant: {delta}", classes="agent-message"
+                        )
+                        conversation.mount(self.current_response_widget)
+                    except Exception as mount_err:
+                        print(f"ERROR creating new widget: {mount_err}")
+
+            async def debug_tool_call(tool_info: dict):
+                debug_widget.update("Tool call received")
+                print(f"Tool call: {tool_info}")
+
+            async def debug_tool_result(result_info: dict):
+                debug_widget.update("Tool result received")
+                print(f"Tool result: {result_info}")
+
+            async def debug_handoff(handoff_info: dict):
+                debug_widget.update("Handoff received")
+                print(f"Handoff: {handoff_info}")
+
+            # Try using the streaming approach first
+            try:
+                print("Starting streaming response generation")
+                result = await self.streaming_agent.generate_streaming_response(
+                    user_message,
+                    self.context,
+                    on_text_delta=debug_text_delta,
+                    on_tool_call=debug_tool_call,
+                    on_tool_result=debug_tool_result,
+                    on_handoff=debug_handoff,
+                )
+                print(
+                    f"Streaming completed with result: {result[:50]}..."
+                    if result
+                    else "No result"
+                )
+            except Exception as stream_err:
+                # If streaming fails, try the direct approach
+                print(
+                    f"Streaming failed: {stream_err}, falling back to direct approach"
+                )
+                debug_widget.update("Streaming failed, using fallback approach...")
+
+                try:
+                    # Use the direct OpenAI API as a last resort fallback
+                    import os
+
+                    from openai import OpenAI
+
+                    # Initialize client with API key
+                    openai_api_key = os.environ.get("OPENAI_API_KEY", "")
+                    if not openai_api_key:
+                        # Try to get from config directly
+                        print("No API key in environment, checking config")
+                        try:
+                            from terminatoride.config import get_config
+
+                            config = get_config()
+                            openai_api_key = config.openai.api_key
+                        except Exception as config_err:
+                            print(f"Config error: {config_err}")
+
+                    if openai_api_key:
+                        print("Using direct OpenAI API call")
+                        client = OpenAI(api_key=openai_api_key)
+
+                        # Make direct completion request
+                        completion = client.chat.completions.create(
+                            model="gpt-3.5-turbo",
+                            messages=[
+                                {
+                                    "role": "system",
+                                    "content": "You are a helpful AI assistant for TerminatorIDE.",
+                                },
+                                {"role": "user", "content": user_message},
+                            ],
+                            stream=True,
+                        )
+
+                        # Stream the response directly
+                        total_content = ""
+                        for chunk in completion:
+                            if chunk.choices and chunk.choices[0].delta.content:
+                                content = chunk.choices[0].delta.content
+                                total_content += content
+                                await debug_text_delta(content)
+
+                        result = total_content
+                    else:
+                        raise Exception("No OpenAI API key available for fallback")
+                except Exception as direct_err:
+                    print(f"Direct API failed: {direct_err}")
+                    # If all else fails, use a static response
+                    result = "I'm sorry, I encountered an error while processing your request. Please try again."
+                    if self.current_response_widget:
+                        self.current_response_widget.update(f"Assistant: {result}")
+                    else:
+                        conversation = self.query_one("#conversation")
+                        self.current_response_widget = Static(
+                            f"Assistant: {result}", classes="agent-message"
+                        )
+                        conversation.mount(self.current_response_widget)
+
+            # Update debug message with completion status
+            debug_widget.update("Debug: Streaming completed successfully")
+
+            # Create a separate log message for completion
+            print(f"Streaming completed successfully with result: {result}")
+
+            # If we have a current response widget that's empty, add the result text
+            if (
+                self.current_response_widget
+                and self.current_response_widget.renderable == "Assistant: "
+            ):
+                self.current_response_widget.update(f"Assistant: {result}")
+
+            # Start a delayed task to remove the debug widget
+            import asyncio
+
+            def cleanup_task():
+                async def _cleanup():
+                    await asyncio.sleep(2)
+                    if debug_widget in self.query_one("#conversation").children:
+                        debug_widget.remove()
+
+                return _cleanup()
+
+            self.app.run_worker(cleanup_task())
 
             # Post event for potential use by other components
-            self.post_message(
-                self.AgentResponse(self.current_response_widget.renderable)
-            )
+            if self.current_response_widget:
+                self.post_message(
+                    self.AgentResponse(self.current_response_widget.renderable)
+                )
 
             # One final scroll to bottom after all streaming
             await self._scroll_to_bottom()
 
         except Exception as e:
-            # Handle errors
+            # Handle errors with more detailed diagnostic info
+            import traceback
+
             conversation = self.query_one("#conversation")
-            conversation.mount(Static(f"Error: {str(e)}", classes="agent-error"))
+            error_text = f"Error: {str(e)}\n\n{traceback.format_exc()}"
+            conversation.mount(Static(error_text, classes="agent-error"))
             await self._scroll_to_bottom()
 
     async def _process_standard_response(
@@ -138,49 +324,113 @@ class StreamingAgentPanel(Container):
     ) -> None:
         """Process the agent response without streaming."""
         try:
-            # Get response from standard agent (non-streaming)
-            response = await self.streaming_agent.agent.generate_response(
-                user_message, self.context
+            # Add debug message
+            conversation = self.query_one("#conversation")
+            debug_widget = Static(
+                "Processing request (non-streaming mode)...", classes="debug-message"
             )
+            conversation.mount(debug_widget)
+
+            # Try using streaming agent directly without callbacks
+            print("Starting non-streaming request using streaming agent")
+            try:
+                # Use the same generate_streaming_response but without callbacks
+                response = await self.streaming_agent.generate_streaming_response(
+                    user_message, self.context
+                )
+                print(
+                    f"Received response via streaming agent: {response[:50] if response else 'No response'}"
+                )
+            except Exception as direct_err:
+                print(
+                    f"Direct streaming request failed: {direct_err}, falling back to base agent"
+                )
+                # Fall back to traditional generate_response
+                response = await self.streaming_agent.base_agent.generate_response(
+                    user_message, self.context
+                )
+                print(
+                    f"Received fallback response: {response[:50] if response else 'No response'}"
+                )
 
             # Remove loading indicator
-            loading_indicator.remove()
+            if loading_indicator in conversation.children:
+                loading_indicator.remove()
 
             # Add response to conversation
-            conversation = self.query_one("#conversation")
-            conversation.mount(
-                Static(f"Assistant: {response}", classes="agent-message")
-            )
+            if response:
+                conversation.mount(
+                    Static(f"Assistant: {response}", classes="agent-message")
+                )
+            else:
+                conversation.mount(
+                    Static(
+                        "Assistant: Sorry, I couldn't generate a response.",
+                        classes="agent-message",
+                    )
+                )
+
+            # Remove debug widget
+            if debug_widget in conversation.children:
+                debug_widget.remove()
 
             # Auto-scroll to bottom
             await self._scroll_to_bottom()
 
             # Post message for potential use by other components
-            self.post_message(self.AgentResponse(response))
+            self.post_message(self.AgentResponse(response or ""))
 
         except Exception as e:
+            import traceback
+
+            error_text = (
+                f"Error in standard response: {str(e)}\n\n{traceback.format_exc()}"
+            )
+            print(error_text)
+
             # Handle errors
-            loading_indicator.remove()
+            if loading_indicator in conversation.children:
+                loading_indicator.remove()
+
             conversation = self.query_one("#conversation")
             conversation.mount(Static(f"Error: {str(e)}", classes="agent-error"))
             await self._scroll_to_bottom()
 
     async def _handle_text_delta(self, delta: str) -> None:
         """Handle text delta events from streaming."""
+        if not delta:  # Skip empty deltas
+            return
+
         if self.current_response_widget:
-            # Get the current text
-            current_text = self.current_response_widget.renderable
+            try:
+                # Get the current text
+                current_text = self.current_response_widget.renderable
 
-            # If this is the first token, add the "Assistant: " prefix
-            if current_text == "Assistant: ":
-                new_text = current_text + delta
-            else:
+                # Add the new text
                 new_text = current_text + delta
 
-            # Update the widget with the new text
-            self.current_response_widget.update(new_text)
-            # Scroll to bottom
-            await self._scroll_to_bottom()
+                # Update the widget with the new text
+                self.current_response_widget.update(new_text)
+
+                # Print debug info
+                print(f"Updated response widget with delta: {delta[:20]}...")
+
+                # Scroll to bottom
+                await self._scroll_to_bottom()
+            except Exception as e:
+                # Print the error but continue
+                print(f"Error in _handle_text_delta: {e}")
+                # Try to recover by creating a new widget if needed
+                conversation = self.query_one("#conversation")
+                if (
+                    not self.current_response_widget
+                    or self.current_response_widget not in conversation.children
+                ):
+                    self.current_response_widget = Static(
+                        "Assistant: " + delta, classes="agent-message"
+                    )
+                    conversation.mount(self.current_response_widget)
+                    await self._scroll_to_bottom()
 
     async def _handle_tool_call(self, tool_info: dict) -> None:
         """Handle tool call events."""
@@ -220,8 +470,16 @@ class StreamingAgentPanel(Container):
 
     async def _scroll_to_bottom(self) -> None:
         """Scroll the conversation to the bottom."""
-        container = self.query_one("#conversation-container")
-        await container.scroll_end(animate=False)
+        try:
+            container = self.query_one("#conversation-container")
+            if container is not None:
+                await container.scroll_end(animate=False)
+            else:
+                # Log that the container wasn't found
+                self.log.warning("Could not find #conversation-container for scrolling")
+        except Exception as e:
+            # Handle any other errors that might occur
+            self.log.error(f"Error scrolling to bottom: {e}")
 
     def _update_context(self) -> None:
         """Update the agent context with current IDE state."""

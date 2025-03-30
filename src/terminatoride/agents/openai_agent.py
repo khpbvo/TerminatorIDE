@@ -27,8 +27,16 @@ class OpenAIAgent:
         self.config = get_config()
         self._setup_api_key()
 
+        # Get the registered tools
         self.tools = register_tools()
-        # Remove any tool with the name 'list_directory' to avoid schema errors.
+
+        # Log tools for debugging
+        logger.info(f"Registered {len(self.tools)} tools")
+        for i, tool in enumerate(self.tools):
+            tool_name = getattr(tool, "name", getattr(tool, "__name__", f"Tool #{i}"))
+            logger.info(f"Tool #{i}: {tool_name} ({type(tool).__name__})")
+
+        # Remove any tool with the name 'list_directory' to avoid schema errors
         self.tools = [
             tool
             for tool in self.tools

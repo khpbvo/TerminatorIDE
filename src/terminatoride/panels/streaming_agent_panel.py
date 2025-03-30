@@ -5,10 +5,11 @@ This panel displays real-time responses from the AI assistant.
 
 import asyncio
 
+from rich.syntax import Syntax
 from textual.app import ComposeResult
 from textual.containers import Container, ScrollableContainer, Vertical
 from textual.message import Message
-from textual.widgets import Button, Checkbox, Input, Label, Loading, Static
+from textual.widgets import Button, Checkbox, Input, Label, LoadingIndicator, Static
 
 from terminatoride.agent.context import AgentContext
 from terminatoride.agent_streaming import get_streaming_agent
@@ -93,7 +94,7 @@ class StreamingAgentPanel(Container):
             conversation.mount(self.current_response_widget)
         else:
             # For non-streaming, show a loading indicator
-            loading = Loading(classes="agent-thinking")
+            loading = LoadingIndicator(classes="agent-thinking")
             conversation.mount(loading)
             self.current_response_widget = None
 
@@ -106,11 +107,41 @@ class StreamingAgentPanel(Container):
         # Auto-scroll to bottom
         await self._scroll_to_bottom()
 
+    class CodeUpdate(Message):
+        """Message containing code from the AI."""
+
+        def __init__(self, code: str, language: str):
+            self.code = code
+            self.language = language
+            super().__init__()
+
+    async def _handle_code_block(self, code: str, language: str) -> None:
+        """Handle code blocks from the AI response."""
+        # Add the code to the conversation with syntax highlighting
+        conversation = self.query_one("#conversation")
+
+        # Create a syntax highlighted version for the conversation
+        syntax_widget = Syntax(code, language, theme="monokai", line_numbers=True)
+        conversation.mount(Static(syntax_widget, classes="agent-code"))
+
+        # Send an update message for the editor
+        self.post_message(self.CodeUpdate(code, language))
+
+        # Auto-scroll to bottom
+        await self._scroll_to_bottom()
+
     async def _process_streaming_response(self, user_message: str) -> None:
         """Process the streaming agent response."""
         try:
+            # Add debug message to conversation
+            conversation = self.query_one("#conversation")
+            debug_widget = Static(
+                "Starting streaming request...", classes="debug-message"
+            )
+            conversation.mount(debug_widget)
+
             # Get streaming response from agent
-            await self.streaming_agent.generate_streaming_response(
+            _ = await self.streaming_agent.generate_streaming_response(
                 user_message,
                 self.context,
                 on_text_delta=self._handle_text_delta,
@@ -119,38 +150,77 @@ class StreamingAgentPanel(Container):
                 on_handoff=self._handle_handoff,
             )
 
+            # Update debug message with success status
+            debug_widget.update("Streaming completed successfully")
+
+            # Remove debug widget after short delay
+            async def remove_debug():
+                import asyncio
+
+                await asyncio.sleep(2)
+                debug_widget.remove()
+
+            # Start the removal task
+            self.app.run_worker(remove_debug())
+
             # Post event for potential use by other components
-            self.post_message(
-                self.AgentResponse(self.current_response_widget.renderable)
-            )
+            if self.current_response_widget:
+                self.post_message(
+                    self.AgentResponse(self.current_response_widget.renderable)
+                )
 
             # One final scroll to bottom after all streaming
             await self._scroll_to_bottom()
 
         except Exception as e:
-            # Handle errors
+            # Handle errors with more details
+            import traceback
+
             conversation = self.query_one("#conversation")
-            conversation.mount(Static(f"Error: {str(e)}", classes="agent-error"))
+            error_text = f"Error: {str(e)}\n\n{traceback.format_exc()}"
+            conversation.mount(Static(error_text, classes="agent-error"))
             await self._scroll_to_bottom()
 
     async def _process_standard_response(
-        self, user_message: str, loading_indicator: Loading
+        self, user_message: str, loading_indicator: LoadingIndicator
     ) -> None:
         """Process the agent response without streaming."""
         try:
-            # Get response from standard agent (non-streaming)
-            response = await self.streaming_agent.agent.generate_response(
-                user_message, self.context
-            )
+            # Add debug message
+            conversation = self.query_one("#conversation")
+            debug_widget = Static("Processing request...", classes="debug-message")
+            conversation.mount(debug_widget)
+
+            # Try using the streaming agent but in non-streaming mode
+            print("Starting non-streaming request using streaming agent")
+            try:
+                # Use the same generate_streaming_response but without callbacks
+                response = await self.streaming_agent.generate_streaming_response(
+                    user_message, self.context
+                )
+                print(f"Received response via streaming agent: {response[:50]}...")
+            except Exception as direct_err:
+                print(
+                    f"Direct streaming request failed: {direct_err}, falling back to base agent"
+                )
+                # Fall back to traditional generate_response
+                response = await self.streaming_agent.base_agent.generate_response(
+                    user_message, self.context
+                )
+                print(f"Received fallback response: {response[:50]}...")
 
             # Remove loading indicator
-            loading_indicator.remove()
+            if loading_indicator in conversation.children:
+                loading_indicator.remove()
 
             # Add response to conversation
-            conversation = self.query_one("#conversation")
             conversation.mount(
                 Static(f"Assistant: {response}", classes="agent-message")
             )
+
+            # Remove debug widget
+            if debug_widget in conversation.children:
+                debug_widget.remove()
 
             # Auto-scroll to bottom
             await self._scroll_to_bottom()
@@ -159,8 +229,15 @@ class StreamingAgentPanel(Container):
             self.post_message(self.AgentResponse(response))
 
         except Exception as e:
-            # Handle errors
-            loading_indicator.remove()
+            import traceback
+
+            error_text = f"Error: {str(e)}\n\n{traceback.format_exc()}"
+            print(f"Error in standard response: {error_text}")
+
+            # Remove loading indicator
+            if loading_indicator in conversation.children:
+                loading_indicator.remove()
+
             conversation = self.query_one("#conversation")
             conversation.mount(Static(f"Error: {str(e)}", classes="agent-error"))
             await self._scroll_to_bottom()

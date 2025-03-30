@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, List, TypedDict
 
-from agents import RunContextWrapper, function_tool
+from agents import FunctionTool, RunContextWrapper, function_tool
 
 from terminatoride.agent.tracing import trace
 from terminatoride.ide.tools_extension import IDE_TOOLS_AVAILABLE, extend_tools
@@ -225,8 +225,84 @@ async def get_current_file(ctx: RunContextWrapper[Any]) -> FileInfo:
 
 def register_tools():
     """Register and return all available tools."""
-    tools = [read_file, write_file, list_directory, execute_python, get_current_file]
+    # Create proper tool objects from the function tools
+
+    # Convert function tools to proper tool objects with name attributes
+    def create_proper_tool(func):
+        try:
+            if hasattr(func, "name") and callable(
+                getattr(func, "on_invoke_tool", None)
+            ):
+                # Already a proper FunctionTool
+                return func
+
+            # If it's a raw function, create a proper FunctionTool with explicit name
+            if hasattr(func, "__name__"):
+                # For function_tool decorated functions that need proper wrapping
+                name = func.__name__
+                description = func.__doc__ or f"Tool: {name}"
+
+                # Import necessary tools from the Agents SDK
+                from agents.tools import extract_params_schema_from_function
+
+                # Try to get the proper schema if possible
+                try:
+                    params_schema = extract_params_schema_from_function(func)
+
+                    # Clean up the schema to remove any default values that cause errors
+                    if (
+                        isinstance(params_schema, dict)
+                        and "properties" in params_schema
+                    ):
+                        for prop_name, prop_schema in params_schema[
+                            "properties"
+                        ].items():
+                            # Remove any 'default' keys that might cause issues
+                            if "default" in prop_schema:
+                                del prop_schema["default"]
+                except Exception as schema_err:
+                    print(f"Error extracting schema for {name}: {schema_err}")
+                    params_schema = {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "string",
+                                "description": "Arguments for the tool",
+                            }
+                        },
+                        "required": ["args"],
+                    }
+
+                # Create a proper FunctionTool wrapper
+                return FunctionTool(
+                    name=name,
+                    description=description,
+                    params_json_schema=params_schema,
+                    on_invoke_tool=func,
+                )
+
+            # Return as is if we can't wrap it
+            return func
+        except Exception as e:
+            print(f"Error creating tool wrapper: {e}")
+            # Return the original function as fallback
+            return func
+
+    # Get the base tools
+    base_tools = [
+        read_file,
+        write_file,
+        list_directory,
+        execute_python,
+        get_current_file,
+    ]
+
+    # Convert them to proper tools
+    tools = [create_proper_tool(tool) for tool in base_tools]
+
+    # Add IDE tools if available
     if IDE_TOOLS_AVAILABLE:
-        tools = extend_tools(tools)
+        ide_tools = extend_tools([])
+        tools.extend([create_proper_tool(tool) for tool in ide_tools])
 
     return tools

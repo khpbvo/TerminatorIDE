@@ -4,16 +4,49 @@ This module extends the OpenAI Agent with streaming capabilities.
 """
 
 import logging
+import os
 from typing import Any, Callable, Dict, Optional
 
 from agents import Runner
 
 from terminatoride.agent.context import AgentContext
-from terminatoride.agent.tracing import trace
 from terminatoride.agents.openai_agent import OpenAIAgent, get_openai_agent
 from terminatoride.utils.error_handling import RateLimitHandler
 
+# Set up detailed logging for debugging
 logger = logging.getLogger(__name__)
+
+# Create a file handler for detailed logging
+try:
+    log_dir = os.path.join(os.path.expanduser("~"), ".terminatoride", "logs")
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Create file handler
+    file_handler = logging.FileHandler(os.path.join(log_dir, "streaming_debug.log"))
+    file_handler.setLevel(logging.DEBUG)
+
+    # Create formatter
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    file_handler.setFormatter(formatter)
+
+    # Add handler to logger
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(file_handler)
+
+    # Also log to console for immediate feedback
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    logger.info("Streaming debug logging initialized")
+except Exception as e:
+    print(f"Error setting up logging: {e}")
+    # Set up a basic console logger as fallback
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
 
 # Type aliases for callback functions
@@ -32,104 +65,103 @@ class StreamingAgent:
         Args:
             base_agent: The base OpenAI agent to use. If None, a new one is created.
         """
-        self.agent = base_agent or get_openai_agent()
-        self.rate_limiter = self.agent.rate_limiter or RateLimitHandler()
+        self.base_agent = (
+            base_agent or get_openai_agent()
+        )  # Changed from self.agent to self.base_agent
+        self.rate_limiter = self.base_agent.rate_limiter or RateLimitHandler()
 
     async def generate_streaming_response(
         self,
         user_message: str,
-        context: Optional[AgentContext] = None,
-        on_text_delta: Optional[TextDeltaCallback] = None,
-        on_tool_call: Optional[ToolCallCallback] = None,
-        on_tool_result: Optional[ToolResultCallback] = None,
-        on_handoff: Optional[HandoffCallback] = None,
+        context: AgentContext,
+        on_text_delta=None,
+        on_tool_call=None,
+        on_tool_result=None,
+        on_handoff=None,
     ) -> str:
-        """Generate a streaming response to the user's message.
-
-        Args:
-            user_message: The user's input message
-            context: Optional agent context with IDE state
-            on_text_delta: Callback for text deltas
-            on_tool_call: Callback for tool calls
-            on_tool_result: Callback for tool results
-            on_handoff: Callback for handoffs
-
-        Returns:
-            The complete final response after streaming
-        """
-        # Check rate limits before proceeding
-        if not self.rate_limiter.can_make_request():
-            wait_time = self.rate_limiter.time_until_next_request()
-            if wait_time > 0:
-                logger.warning(
-                    f"Rate limit reached. Need to wait {wait_time:.2f} seconds"
-                )
-                return f"I'm receiving too many requests right now. Please try again in {wait_time:.1f} seconds."
+        """Generate a streaming response to the user query."""
+        # Check if rate limiting allows the request
+        if not self.base_agent.rate_limiter.can_make_request():
+            raise Exception("Rate limit exceeded. Please try again later.")
 
         try:
-            # Prepare context for the agent run
-            run_context = context if context is not None else AgentContext()
+            # Create context dict for the SDK
+            context_dict = {}
+            if hasattr(context, "user_query"):
+                context_dict["user_query"] = context.user_query
+            # Add other context fields as needed
 
-            with trace("Streaming Agent Run"):
-                # Use the streaming API from Agent SDK
-                streaming_result = Runner.run_streamed(
-                    starting_agent=self.agent.default_agent,
-                    input=user_message,
-                    context=run_context,
-                )
+            # Get streaming run result
+            logger.info("Starting streaming request")
+            run_result = Runner.run_streamed(
+                self.base_agent.default_agent,
+                input=user_message,
+                context=context_dict,
+            )
 
-                # Collect the full response as we stream
-                full_response = ""
+            # Track the final message content for return
+            final_content = ""
 
-                # Process the streaming events
-                async for event in streaming_result.stream_events():
+            # Process streaming events
+            try:
+                async for event in run_result.stream_events():
+                    # Log the event type for debugging
+                    logger.debug(f"Received event type: {event.type}")
+
+                    # Handle different event types
                     if event.type == "raw_response_event":
-                        # Handle text deltas for displaying token by token
-                        # Instead of checking instance type, check for delta attribute
-                        if hasattr(event.data, "delta") and event.data.delta:
-                            if on_text_delta:
-                                await on_text_delta(event.data.delta)
-                                full_response += event.data.delta
+                        logger.debug(f"Raw response event received: {event}")
+                        # Some events have a different structure
+                        try:
+                            if hasattr(event.data, "delta"):
+                                delta = event.data.delta
+                                if delta and on_text_delta:
+                                    final_content += delta
+                                    await on_text_delta(delta)
+                            else:
+                                logger.debug("No delta attribute found in event data")
+                                # For the first event, extract initial text if available
+                                if hasattr(event.data, "response") and hasattr(
+                                    event.data.response, "text"
+                                ):
+                                    text = event.data.response.text
+                                    if text and on_text_delta:
+                                        await on_text_delta(text)
+                                        final_content = text
+                        except Exception as e:
+                            logger.error(f"Error processing text delta: {e}")
 
-                    elif event.type == "run_item_stream_event":
-                        item = event.item
-                        # Handle different item types
-                        if item.type == "tool_call_item" and on_tool_call:
-                            tool_info = {
-                                "name": item.tool_name,
-                                "arguments": item.tool_arguments,
-                            }
-                            await on_tool_call(tool_info)
+                    # More event handling...
+            except Exception as e:
+                logger.error(f"Error processing streaming events: {e}")
 
-                        elif item.type == "tool_call_output_item" and on_tool_result:
-                            result_info = {
-                                "output": item.output,
-                                "tool_name": item.tool_name,
-                            }
-                            await on_tool_result(result_info)
+            # Instead of awaiting run_result directly, use the content we've collected
+            logger.info("Streaming complete, getting final result")
 
-                    elif event.type == "handoff_stream_event" and on_handoff:
-                        # Handle handoffs between agents
-                        handoff_info = {
-                            "from_agent": (
-                                event.source_agent.name
-                                if event.source_agent
-                                else "Unknown"
-                            ),
-                            "to_agent": (
-                                event.target_agent.name
-                                if event.target_agent
-                                else "Unknown"
-                            ),
-                            "reason": "Specialized knowledge required",  # This could be extracted from the context
-                        }
-                        await on_handoff(handoff_info)
+            # If we didn't get any content from streaming, try to get the final content
+            if not final_content:
+                try:
+                    # Try to get the result through a different method
+                    # Check if run_result has a get_result() method
+                    if hasattr(run_result, "get_result"):
+                        result = await run_result.get_result()
+                        final_content = result.final_output
+                    # If that fails, see if there's a result property
+                    elif hasattr(run_result, "result"):
+                        final_content = run_result.result
+                    # Last resort - see if run_result itself has text content
+                    elif hasattr(run_result, "final_output"):
+                        final_content = run_result.final_output
+                    else:
+                        # We couldn't get any content
+                        final_content = "Sorry, I couldn't generate a response."
+                except Exception as e:
+                    logger.error(f"Error getting final result: {e}")
+                    final_content = f"Error completing response: {str(e)}"
 
-                # Return the complete response
-                return full_response or streaming_result.final_output
-
+            return final_content
         except Exception as e:
-            logger.error(f"Error generating streaming response: {e}")
+            logger.error(f"Streaming failed: {e}")
             return f"I encountered an error while processing your request: {str(e)}"
 
 

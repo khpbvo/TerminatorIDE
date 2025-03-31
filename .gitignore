@@ -19,7 +19,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
+/Users/kevinvanosch/Documents/TerminatorIDE/implementations/Diff lib/
+/Users/kevinvanosch/Documents/TerminatorIDE/implementations/File explorer/
 # Virtual Environment
 venv/
 env/

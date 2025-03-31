@@ -25,3 +25,6 @@ black
 isort
 mypy
 python-dotenv  # For .env file loading
+
+## logging
+psutil

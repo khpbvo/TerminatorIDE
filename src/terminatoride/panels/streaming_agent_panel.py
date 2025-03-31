@@ -17,7 +17,7 @@ from terminatoride.agent.context import (  # Ensure FileContext is imported
     FileContext,
 )
 from terminatoride.agent_streaming import get_streaming_agent
-from terminatoride.utils.logging_utils import log_exception, setup_logger
+from terminatoride.utils.logging_utils import setup_logger
 
 # Initialize logger
 logger = setup_logger("terminatoride.agent_panel")
@@ -230,122 +230,107 @@ class StreamingAgentPanel(Container):
 
     async def _process_streaming_response(self, user_message: str) -> None:
         """Process the streaming response from agent."""
-        logger.info(f"Starting streaming response for message: {user_message[:50]}...")
-
         try:
-            # Create wrapper callbacks with logging
-            async def debug_text_delta(delta: str):
-                logger.debug(f"Text delta received: '{delta[:30]}...'")
-                # Just log to console, not to UI
-                print(f"DEBUG: Received delta: '{delta[:50]}...'")
-
-                # Process delta as normal
-                if delta is None:
-                    delta = ""
+            # Create wrapper callbacks
+            async def handle_text_delta(delta: str):
+                if delta is None or not delta:
+                    return
 
                 if not isinstance(delta, str):
                     try:
                         delta = str(delta)
-                    except Exception as err:
-                        print(f"ERROR converting delta to string: {err}")
+                    except Exception:
                         delta = "[Non-text content]"
 
-                if not delta:
-                    return
+                    if self.current_response_widget:
+                        current_text = self.current_response_widget.renderable
+                        new_text = current_text + delta
+                        self.current_response_widget.update(new_text)
 
-                if self.current_response_widget:
-                    current_text = self.current_response_widget.renderable
-                    new_text = current_text + delta
-                    self.current_response_widget.update(new_text)
-
-            async def debug_tool_call(tool_info: dict):
-                logger.info(f"Tool call: {tool_info}")
+            async def handle_tool_call(tool_info: dict):
                 await self._handle_tool_call(tool_info)
 
-            async def debug_tool_result(result_info: dict):
-                logger.info(f"Tool result: {result_info}")
+            async def handle_tool_result(result_info: dict):
                 await self._handle_tool_result(result_info)
 
-            async def debug_handoff(handoff_info: dict):
-                logger.info(f"Handoff event: {handoff_info}")
-                try:
-                    await self._handle_handoff(handoff_info)
-                except Exception:
-                    log_exception(logger, "Error in handoff handler")
-                    raise
+            async def handle_handoff(handoff_info: dict):
+                await self._handle_handoff(handoff_info)
 
-            # Try using the streaming approach first
+            # Try using the streaming approach
             try:
-                logger.info("Starting streaming response generation")
+                print("Starting streaming response generation")
                 result = await self.streaming_agent.generate_streaming_response(
                     user_message,
                     self.context,
-                    on_text_delta=debug_text_delta,
-                    on_tool_call=debug_tool_call,
-                    on_tool_result=debug_tool_result,
-                    on_handoff=debug_handoff,
+                    on_text_delta=handle_text_delta,
+                    on_tool_call=handle_tool_call,
+                    on_tool_result=handle_tool_result,
+                    on_handoff=handle_handoff,
                 )
-                print(
-                    f"Streaming completed with result: {result[:50]}..."
-                    if result
-                    else "No result"
-                )
+                print("Streaming completed successfully")
             except Exception as stream_err:
-                # If streaming fails, try the direct approach
                 print(
-                    f"Streaming failed: {stream_err}, falling back to direct approach"
+                    f"Streaming failed: {stream_err}, falling back to agent non-streaming approach"
                 )
 
+                # Fallback to non-streaming agent approach
                 try:
-                    # Use the direct OpenAI API as a last resort fallback
-                    import os
-
-                    from openai import OpenAI
-
-                    # Initialize client with API key
-                    openai_api_key = os.environ.get("OPENAI_API_KEY", "")
-                    if not openai_api_key:
-                        # Try to get from config directly
-                        print("No API key in environment, checking config")
-                        try:
-                            from terminatoride.config import get_config
-
-                            config = get_config()
-                            openai_api_key = config.openai.api_key
-                        except Exception as config_err:
-                            print(f"Config error: {config_err}")
-
-                    if openai_api_key:
-                        print("Using direct OpenAI API call")
-                        client = OpenAI(api_key=openai_api_key)
-
-                        # Make direct completion request
-                        completion = client.chat.completions.create(
-                            model="gpt-3.5-turbo",
-                            messages=[
-                                {
-                                    "role": "system",
-                                    "content": "You are a helpful AI assistant for TerminatorIDE.",
-                                },
-                                {"role": "user", "content": user_message},
-                            ],
-                            stream=True,
+                    # Use the base agent directly (still using the Agent SDK)
+                    print("Using base agent fallback")
+                    if hasattr(self.streaming_agent, "base_agent"):
+                        response = (
+                            await self.streaming_agent.base_agent.generate_response(
+                                user_message, self.context
+                            )
+                        )
+                        print(
+                            f"Received response from base agent: {response[:50] if response else 'No response'}"
                         )
 
-                        # Stream the response directly
-                        total_content = ""
-                        for chunk in completion:
-                            if chunk.choices and chunk.choices[0].delta.content:
-                                content = chunk.choices[0].delta.content
-                                total_content += content
-                                await debug_text_delta(content)
+                        # Update the UI with the response
+                        if self.current_response_widget:
+                            self.current_response_widget.update(
+                                f"Assistant: {response}"
+                            )
+                        else:
+                            conversation = self.query_one("#conversation")
+                            self.current_response_widget = Static(
+                                f"Assistant: {response}", classes="agent-message"
+                            )
+                            conversation.mount(self.current_response_widget)
 
-                        result = total_content
+                        result = response
                     else:
-                        raise Exception("No OpenAI API key available for fallback")
-                except Exception as direct_err:
-                    print(f"Direct API failed: {direct_err}")
-                    # If all else fails, use a static response
+                        # Try to access the OpenAI Agent directly through the agent_manager
+                        from terminatoride.agent import get_agent_manager
+
+                        agent_manager = get_agent_manager()
+
+                        print("Using agent_manager fallback")
+                        agent = agent_manager.get_agent("TerminatorIDE Assistant")
+                        if agent:
+                            response = await agent_manager.run_agent(
+                                agent=agent,
+                                user_input=user_message,
+                                context=self.context,
+                            )
+
+                            if self.current_response_widget:
+                                self.current_response_widget.update(
+                                    f"Assistant: {response}"
+                                )
+                            else:
+                                conversation = self.query_one("#conversation")
+                                self.current_response_widget = Static(
+                                    f"Assistant: {response}", classes="agent-message"
+                                )
+                                conversation.mount(self.current_response_widget)
+
+                            result = response
+                        else:
+                            raise Exception("No agent available for fallback")
+                except Exception as agent_err:
+                    print(f"Agent fallback failed: {agent_err}")
                     result = "I'm sorry, I encountered an error while processing your request. Please try again."
                     if self.current_response_widget:
                         self.current_response_widget.update(f"Assistant: {result}")
@@ -356,15 +341,11 @@ class StreamingAgentPanel(Container):
                         )
                         conversation.mount(self.current_response_widget)
 
-            # Create a separate log message for completion
-            print(f"Streaming completed successfully with result: {result}")
-
             # If we have a current response widget that's empty, add the result text
             if (
                 self.current_response_widget
                 and self.current_response_widget.renderable == "Assistant: "
             ):
-                # DISABLE MARKUP HERE
                 self.current_response_widget.update(f"Assistant: {result}")
 
             # Post event for potential use by other components
@@ -373,16 +354,16 @@ class StreamingAgentPanel(Container):
                     self.AgentResponse(self.current_response_widget.renderable)
                 )
 
-            # One final scroll to bottom after all streaming
+            # Final scroll to bottom
             await self._scroll_to_bottom()
 
         except Exception as e:
-            log_exception(logger, "Error in streaming response")
-            # Handle errors with more detailed diagnostic info
             import traceback
 
+            error_text = f"Error in streaming response: {str(e)}"
+            print(f"{error_text}\n{traceback.format_exc()}")
+
             conversation = self.query_one("#conversation")
-            error_text = f"Error: {str(e)}\n\n{traceback.format_exc()}"
             conversation.mount(Static(error_text, classes="agent-error"))
             await self._scroll_to_bottom()
 
@@ -708,6 +689,10 @@ class StreamingAgentPanel(Container):
 
         original_code = self.context.current_file.content
         language = self.context.current_file.language or "python"
+        file_path = self.context.current_file.path
+
+        print(f"Processing {command} command on file: {file_path}")
+        print(f"Original code length: {len(original_code)} chars, language: {language}")
 
         # Show thinking message
         conversation = self.query_one("#conversation")
@@ -753,53 +738,94 @@ class StreamingAgentPanel(Container):
                     "Please enter the number of the file you want to open."
                 )
 
-                # TODO: Implement file search and listing
+                # Implementation for file search
+                if hasattr(self.streaming_agent, "tools"):
+                    # Use find_in_project tool if available
+                    from terminatoride.agent.tools import find_in_project
+
+                    result = find_in_project(args, pattern="*")
+                    if result and isinstance(result, list) and len(result) > 0:
+                        self._last_file_search_results = result
+                        files_list = "\n".join(
+                            [f"{i+1}. {f}" for i, f in enumerate(result)]
+                        )
+                        command_message.update(
+                            f"🔍 Found {len(result)} files matching '{args}':\n\n{files_list}\n\nEnter the number of the file you want to open:"
+                        )
+                    else:
+                        command_message.update(f"No files found matching '{args}'")
+                else:
+                    command_message.update("File search capability not available")
+
                 return True
 
             else:
                 # For improvement commands
                 prompt = ""
                 if command == "/improve":
-                    prompt = f"Improve this {language} code with best practices:\n\n```{language}\n{original_code}\n```\nProvide both the improved code and an explanation of the changes."
+                    prompt = f"Improve this {language} code with best practices. Focus on better structure, efficiency, and readability:\n\n```{language}\n{original_code}\n```\nProvide ONLY the improved code in a code block, then an explanation of the changes."
                 elif command == "/refactor":
-                    prompt = f"Refactor this {language} code for better structure:\n\n```{language}\n{original_code}\n```\nProvide both the refactored code and an explanation of the changes."
+                    prompt = f"Refactor this {language} code for better structure. The refactored code should have the same behavior and functionality:\n\n```{language}\n{original_code}\n```\nProvide ONLY the refactored code in a code block, then an explanation of the changes."
                 elif command == "/optimize":
-                    prompt = f"Optimize this {language} code for better performance:\n\n```{language}\n{original_code}\n```\nProvide both the optimized code and an explanation of the improvements."
+                    prompt = f"Optimize this {language} code for better performance. Focus on reducing complexity and improving efficiency:\n\n```{language}\n{original_code}\n```\nProvide ONLY the optimized code in a code block, then an explanation of the improvements."
                 elif command == "/debug":
-                    prompt = f"Find and fix any bugs in this {language} code:\n\n```{language}\n{original_code}\n```\nProvide both the fixed code and an explanation of the bugs."
+                    prompt = f"Find and fix any bugs in this {language} code. Ensure the code works correctly and handles edge cases:\n\n```{language}\n{original_code}\n```\nProvide ONLY the fixed code in a code block, then an explanation of the bugs fixed."
                 elif command == "/clean":
-                    prompt = f"Clean up this {language} code (formatting, naming, etc.):\n\n```{language}\n{original_code}\n```\nProvide both the cleaned code and an explanation of the changes."
+                    prompt = f"Clean up this {language} code by improving formatting, naming conventions, documentation, etc.:\n\n```{language}\n{original_code}\n```\nProvide ONLY the cleaned code in a code block, then an explanation of the changes."
                 elif command == "/security":
-                    prompt = f"Improve security aspects of this {language} code:\n\n```{language}\n{original_code}\n```\nProvide both the improved code and an explanation of the security issues fixed."
+                    prompt = f"Improve security aspects of this {language} code. Focus on preventing vulnerabilities and following security best practices:\n\n```{language}\n{original_code}\n```\nProvide ONLY the improved code in a code block, then an explanation of the security issues fixed."
+
+                print(f"Sending prompt for {command}: {prompt[:100]}...")
 
                 # Get response from the agent
                 response = await self.streaming_agent.generate_response(
                     prompt, self.context
                 )
+                print(f"Received response of length {len(response)}")
 
                 # Try to extract code block from response
                 import re
 
-                code_pattern = r"```(?:\w+)?\n([\s\S]*?)```"
+                # More comprehensive pattern to match code blocks with or without language specifier
+                code_pattern = r"```(?:\w+)?\n([\s\S]*?)```|```([\s\S]*?)```"
                 code_matches = re.findall(code_pattern, response)
 
-                if code_matches:
-                    improved_code = code_matches[0].strip()
+                # Process matches - findall with this pattern returns tuples with groups
+                extracted_code = None
+                for match in code_matches:
+                    # Take the first non-empty group
+                    for group in match:
+                        if group and group.strip():
+                            extracted_code = group.strip()
+                            break
+                    if extracted_code:
+                        break
+
+                if extracted_code:
+                    improved_code = extracted_code
+                    print(f"Extracted code of length {len(improved_code)}")
 
                     # Create a diff using DiffManager
-                    from terminatoride.utils.diff_manager import DiffManager
+                    from terminatoride.utils.diff_manager import DiffManager, DiffType
 
-                    diff_text = DiffManager.generate_diff(original_code, improved_code)
+                    # Generate a clean unified diff
+                    diff_text = DiffManager.generate_diff(
+                        original_code,
+                        improved_code,
+                        diff_type=DiffType.UNIFIED,
+                        context_lines=3,
+                    )
+                    print(f"Generated diff of length {len(diff_text)}")
 
                     # Extract explanation (text before or after code block)
-                    explanation = response.replace(
-                        f"```{language}\n{improved_code}\n```", ""
-                    )
-                    explanation = explanation.replace(f"```\n{improved_code}\n```", "")
+                    explanation = re.sub(
+                        r"```(?:\w+)?\n[\s\S]*?```", "", response
+                    ).strip()
+                    print(f"Extracted explanation of length {len(explanation)}")
 
                     # Remove the thinking indicator and update message
                     thinking.remove()
-                    command_message.update("Code improvements ready for review")
+                    command_message.update("✅ Code improvements ready for review")
 
                     # Show the diff dialog
                     await self.show_diff_dialog(
@@ -848,28 +874,79 @@ class StreamingAgentPanel(Container):
                 and self.context
                 and self.context.current_file
             ):
-                # Get the editor panel
-                editor_panel = self.app.query_one("#editor-panel")
+                try:
+                    # Get the editor panel
+                    editor_panel = self.app.query_one("#editor-panel")
 
-                # Update the editor content with the improved code
-                if hasattr(editor_panel, "set_content"):
-                    editor_panel.set_content(improved_code)
+                    # Update the editor content with the improved code
+                    if hasattr(editor_panel, "set_content"):
+                        editor_panel.set_content(improved_code)
+                    elif hasattr(editor_panel, "editor") and hasattr(
+                        editor_panel.editor, "set_content"
+                    ):
+                        editor_panel.editor.set_content(improved_code)
+                    elif hasattr(editor_panel, "editor") and hasattr(
+                        editor_panel.editor, "text"
+                    ):
+                        editor_panel.editor.text = improved_code
+                        editor_panel.editor.refresh()
+                    else:
+                        # Direct approach as last resort
+                        print("Using direct approach to update editor content")
+                        editors = self.app.query("*")
+                        for widget in editors:
+                            if hasattr(widget, "text") and callable(
+                                getattr(widget, "text", None)
+                            ):
+                                widget.text = improved_code
+                                if hasattr(widget, "refresh"):
+                                    widget.refresh()
+                                break
 
-                # Update the file context to reflect changes
-                file_path = self.context.current_file.path
-                self.context.update_current_file(file_path, improved_code)
+                    # Update the file context to reflect changes
+                    file_path = self.context.current_file.path
+                    self.context.update_current_file(file_path, improved_code)
 
-                # Notify the user
-                self.app.notify(
-                    "Code changes applied successfully", severity="information"
-                )
+                    # Also write changes to the actual file if it exists
+                    try:
+                        with open(file_path, "w", encoding="utf-8") as f:
+                            f.write(improved_code)
+                        print(f"Successfully wrote changes to file: {file_path}")
+                    except Exception as file_err:
+                        print(f"Error writing file: {file_err}")
+
+                    # Notify the user
+                    self.app.notify(
+                        "Code changes applied successfully", severity="information"
+                    )
+
+                    print(
+                        f"Applied code changes: replaced {len(original_code)} chars with {len(improved_code)} chars"
+                    )
+                except Exception as e:
+                    print(f"Error applying changes: {e}")
+                    import traceback
+
+                    print(traceback.format_exc())
+                    self.app.notify(
+                        f"Error applying changes: {str(e)}", severity="error"
+                    )
 
         # Create and show the diff view screen
-        diff_screen = DiffViewScreen(
-            diff_text=diff_text,
-            apply_callback=apply_changes,
-            title="Code Improvements",
-            explanation=explanation,
-        )
+        try:
+            print(f"Creating diff view with {len(diff_text)} chars of diff content")
+            diff_screen = DiffViewScreen(
+                diff_text=diff_text,
+                apply_callback=apply_changes,
+                title="Code Improvements",
+                explanation=explanation,
+            )
+            print("Pushing diff screen")
+            await self.app.push_screen(diff_screen)
+            print("Diff screen pushed successfully")
+        except Exception as e:
+            print(f"Error showing diff dialog: {e}")
+            import traceback
 
-        await self.app.push_screen(diff_screen)
+            print(traceback.format_exc())
+            self.app.notify(f"Error showing diff: {str(e)}", severity="error")

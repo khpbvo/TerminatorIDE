@@ -3,11 +3,14 @@
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal
-from textual.events import Key
 from textual.widget import Widget
 from textual.widgets import Button, Static
 
 from ..components.file_explorer import FileExplorer
+from ..utils.logging import setup_logger
+
+# Set up logger
+logger = setup_logger("left_panel", "left_panel.log")
 
 
 class LeftPanel(Widget):
@@ -21,20 +24,17 @@ class LeftPanel(Widget):
     # Re-export FileSelected message
     FileSelected = FileExplorer.FileSelected
 
-    def __init__(self, path: str = ".", *args, **kwargs):
-        """Initialize the left panel.
-
-        Args:
-            path: The directory path to explore.
-        """
+    def __init__(self, *args, **kwargs):
+        """Initialize the left panel."""
         super().__init__(*args, **kwargs)
-        self.path = path
         self.current_tab = "files"
-        self._tab_content = None
+        logger.info("LeftPanel initialized")
 
     def compose(self) -> ComposeResult:
         """Compose the left panel widget."""
-        # Simple tab bar instead of TabbedContent for more control
+        logger.info("Composing LeftPanel")
+
+        # Tab buttons
         with Horizontal(id="tab-buttons"):
             yield Button("Files", id="files-tab-btn", variant="primary")
             yield Button("Git", id="git-tab-btn", variant="default")
@@ -43,59 +43,52 @@ class LeftPanel(Widget):
         # Content area for the selected tab
         with Container(id="tab-content"):
             # File Explorer (initially visible)
-            yield FileExplorer(
-                self.path, id="file-explorer", classes="tab-panel active"
-            )
+            yield FileExplorer(id="file-explorer", classes="tab-panel")
 
             # Git Integration (initially hidden)
             yield Static(
-                "Git integration coming soon...", id="git-panel", classes="tab-panel"
+                "Git integration coming soon...",
+                id="git-panel",
+                classes="tab-panel hidden",
             )
 
             # SSH Remote Editing (initially hidden)
             yield Static(
-                "SSH remote editing coming soon...", id="ssh-panel", classes="tab-panel"
+                "SSH remote editing coming soon...",
+                id="ssh-panel",
+                classes="tab-panel hidden",
             )
 
     def on_mount(self) -> None:
         """Called when the widget is mounted."""
+        logger.info("LeftPanel mounted")
+
         # Connect tab button handlers
         self.query_one("#files-tab-btn").on_click = self._show_files_tab
         self.query_one("#git-tab-btn").on_click = self._show_git_tab
         self.query_one("#ssh-tab-btn").on_click = self._show_ssh_tab
 
-        # Hide git and ssh panels initially
-        self.query_one("#git-panel").display = False
-        self.query_one("#ssh-panel").display = False
-
         # Set initial focus to the file explorer
         self.query_one("#file-explorer").focus()
 
-        print("LeftPanel mounted")
-
-    def on_key(self, event: Key) -> None:
-        """Handle key events directly for debugging."""
-        print(f"Key pressed in LeftPanel: {event.key}")
-
     def _show_files_tab(self) -> None:
         """Show the files tab."""
+        logger.debug("Show files tab called")
         self._set_active_tab("files")
 
     def _show_git_tab(self) -> None:
         """Show the git tab."""
+        logger.debug("Show git tab called")
         self._set_active_tab("git")
 
     def _show_ssh_tab(self) -> None:
         """Show the ssh tab."""
+        logger.debug("Show SSH tab called")
         self._set_active_tab("ssh")
 
     def _set_active_tab(self, tab_id: str) -> None:
-        """Set the active tab.
-
-        Args:
-            tab_id: The ID of the tab to activate ("files", "git", or "ssh").
-        """
-        print(f"Switching to tab: {tab_id}")
+        """Set the active tab."""
+        logger.info(f"Switching to tab: {tab_id}")
 
         # Update button styles
         self.query_one("#files-tab-btn").variant = (
@@ -108,12 +101,18 @@ class LeftPanel(Widget):
             "primary" if tab_id == "ssh" else "default"
         )
 
-        # Update panel visibility
-        self.query_one("#file-explorer").display = tab_id == "files"
-        self.query_one("#git-panel").display = tab_id == "git"
-        self.query_one("#ssh-panel").display = tab_id == "ssh"
+        # Update panel visibility using classes
+        for panel_id in ["file-explorer", "git-panel", "ssh-panel"]:
+            panel = self.query_one(f"#{panel_id}")
+            if (
+                f"{tab_id}-tab-btn".replace("files-tab-btn", "file-explorer")
+                == panel_id
+            ):
+                panel.remove_class("hidden")
+            else:
+                panel.add_class("hidden")
 
-        # Set focus to the active panel
+        # Set focus to the active panel if it's the file explorer
         if tab_id == "files":
             self.query_one("#file-explorer").focus()
 
@@ -122,19 +121,6 @@ class LeftPanel(Widget):
 
     def on_file_explorer_file_selected(self, event: FileExplorer.FileSelected) -> None:
         """Handle file selection events from the file explorer."""
-        # Forward the event to the parent
-        self.post_message(event)
-
-    def action_next_tab(self) -> None:
-        """Switch to the next tab."""
-        tabs = ["files", "git", "ssh"]
-        current_index = tabs.index(self.current_tab)
-        next_index = (current_index + 1) % len(tabs)
-        self._set_active_tab(tabs[next_index])
-
-    def action_prev_tab(self) -> None:
-        """Switch to the previous tab."""
-        tabs = ["files", "git", "ssh"]
-        current_index = tabs.index(self.current_tab)
-        prev_index = (current_index - 1) % len(tabs)
-        self._set_active_tab(tabs[prev_index])
+        logger.info(f"LeftPanel received file selection: {event.path}")
+        # Store locally, don't re-post (to avoid infinite loops)
+        self.current_file = event.path

@@ -329,6 +329,73 @@
     padding: 0 1px;
 }
 
+/* Simplified File Explorer Styling */
+#explorer-main {
+    width: 100%;
+    height: 100%;
+    background: var(--surface);
+}
+
+#explorer-header {
+    background: var(--primary-darken-2);
+    color: var(--text);
+    text-align: center;
+    padding: 1px;
+    font-weight: bold;
+}
+
+#explorer-buttons {
+    width: 100%;
+    height: auto;
+    padding: 1px;
+    background: var(--surface-darken-1);
+}
+
+#explorer-buttons Button {
+    margin: 0 1px;
+    flex: 1;
+}
+
+#explorer-content {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    border: 1px solid var(--primary-darken-2);
+}
+
+#welcome-msg {
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    padding-top: 4rem;
+    color: var(--text-muted);
+}
+
+#directory-tree {
+    width: 100%;
+    height: 100%;
+}
+
+/* DirectoryTree styling */
+#directory-tree {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
+
+.directory-tree--folder {
+    color: #5294e2;
+    font-weight: bold;
+}
+
+.directory-tree--file {
+    color: #d3dae3;
+}
+
+.directory-tree--hidden {
+    opacity: 0.5;
+}
+
 /* Left Panel Tab Styling */
 #left-panel-tabs {
     width: 100%;
@@ -355,6 +422,25 @@
 #left-panel-tabs > Tabs > .tab.--active {
     background: var(--primary);
     color: var(--text);
+}
+
+/* File Explorer empty state styling */
+#empty-state-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 1rem;
+}
+
+.empty-state-message {
+    margin-bottom: 1rem;
+    opacity: 0.7;
+}
+
+.open-folder-button {
+    padding: 0.5rem 1rem;
 }
 
 /* File explorer button bar */
@@ -495,4 +581,48 @@ Tree .tree--cursor {
     #send-button {
         min-width: 8em;
     }
+}
+
+/* Folder dialog styling */
+.folder-dialog {
+    background: var(--surface);
+    border: solid var(--accent);
+    padding: 1px;
+    min-width: 60%;
+}
+
+.folder-dialog #dialog-title {
+    background: var(--accent);
+    color: var(--text);
+    text-align: center;
+    width: 100%;
+    padding: 1px 0;
+}
+
+.folder-dialog #dialog-message {
+    margin: 1px 0;
+}
+
+.folder-dialog #folder-path-input {
+    margin: 1px 0;
+    min-width: 40px;
+}
+
+.folder-dialog #button-container {
+    margin-top: 1px;
+    width: 100%;
+    height: auto;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+}
+
+.folder-dialog Button {
+    margin: 0 1px;
+    min-width: 8px;
+}
+
+/* Hidden class for toggling visibility */
+.hidden {
+    display: none;
 }

@@ -3,7 +3,6 @@
 import importlib.util
 import os
 import re
-import time
 from pathlib import Path
 
 from textual import events, on
@@ -614,7 +613,7 @@ if __name__ == "__main__":
         self._setup_minimap()
 
         # Schedule initial code quality check
-        self.set_timer(1.0, self._schedule_lint_check)
+        # self.set_timer(1.0, self._schedule_lint_check)
 
     def _initialize_syntax_highlighting(self) -> None:
         """Initialize and ensure all syntax highlighting capabilities are available."""
@@ -856,7 +855,7 @@ if __name__ == "__main__":
             "shift+f3": self.action_find_previous,
             "ctrl+h": self.action_show_replace,
             "ctrl+[": self.action_fold_current,
-            "ctrl+]": self.action_unfold_current,
+            # "ctrl+]": self.action_unfold_current,
             "ctrl+space": self.action_show_completion,
             "alt+z": self.action_toggle_word_wrap,
             "alt+l": self.action_toggle_line_numbers,
@@ -864,7 +863,7 @@ if __name__ == "__main__":
             "ctrl+m": self.action_toggle_minimap,
             "ctrl+l": self.action_select_current_line,
             "ctrl+shift+l": self.action_select_all_occurrences,
-            "ctrl+shift+c": self.action_check_code_quality,
+            # "ctrl+shift+c": self.action_check_code_quality,
             "ctrl+n": self.action_new_file,
             "ctrl+o": self.action_open_file,
             "ctrl+shift+s": self.action_save_as,
@@ -1427,16 +1426,16 @@ def sample_function():
             self._current_search_index = 0
             self._highlight_current_match()
 
-    def action_check_code_quality(self) -> None:
-        """Check code quality using linters."""
-        self._run_lint_check()
+    # def action_check_code_quality(self) -> None:
+    #     """Check code quality using linters."""
+    #     self._run_lint_check()
 
-    def _schedule_lint_check(self) -> None:
-        """Schedule a lint check if enough time has passed."""
-        current_time = time.time()
-        if current_time - self._last_lint_time > self._lint_delay:
-            self._run_lint_check()
-            self._last_lint_time = current_time
+    # def _schedule_lint_check(self) -> None:
+    #     """Schedule a lint check if enough time has passed."""
+    #     current_time = time.time()
+    #     if current_time - self._last_lint_time > self._lint_delay:
+    #         self._run_lint_check()
+    #         self._last_lint_time = current_time
 
     # def _run_lint_check(self) -> None:
     #     """Run linting check on the current code."""

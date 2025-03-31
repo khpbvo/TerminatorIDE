@@ -5,7 +5,7 @@ Provides shared context between the IDE and agents.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -79,6 +79,45 @@ class AgentContext(BaseModel):
         "arbitrary_types_allowed": True,
         "extra": "allow",
     }
+
+    @property
+    def app(self) -> Any:
+        """Get the app reference."""
+        return getattr(self, "_app", None)
+
+    @app.setter
+    def app(self, value: Any):
+        """Set the app reference."""
+        self._app = value
+
+    def get_editor_panel(self):
+        """Get the editor panel from the app."""
+        if self.app and hasattr(self.app, "query_one"):
+            try:
+                return self.app.query_one("#editor-panel")
+            except Exception:
+                return None
+        return None
+
+    def apply_code_changes(self, new_content: str, show_diff: bool = True):
+        """
+        Apply code changes to the current file.
+
+        Args:
+            new_content: The new code content
+            show_diff: Whether to show a diff before applying changes
+
+        Returns:
+            True if changes were applied, False otherwise
+        """
+        editor_panel = self.get_editor_panel()
+        if editor_panel and self.current_file:
+            if show_diff:
+                editor_panel.show_diff(self.current_file.content, new_content)
+            else:
+                editor_panel.apply_changes(new_content)
+            return True
+        return False
 
     def update_from_dict(self, data: dict):
         """Safely handle potential None values."""

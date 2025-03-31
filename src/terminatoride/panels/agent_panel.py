@@ -6,9 +6,14 @@ This shows how to connect the UI with the agent functionality.
 import asyncio
 
 from textual.app import ComposeResult
-from textual.containers import Container, ScrollableContainer, Vertical
+from textual.containers import Container, ScrollableContainer
 from textual.message import Message
-from textual.widgets import Button, Input, Label, Static
+from textual.widgets import (
+    Button,
+    Input,
+    Label,
+    Static,
+)
 
 from terminatoride.agent.context import AgentContext, FileContext
 from terminatoride.agents.openai_agent import get_openai_agent
@@ -33,11 +38,13 @@ class AgentPanel(Container):
         """Compose the agent panel widget."""
         yield Label("AI Assistant", id="agent-title")
 
+        # Conversation container
         with ScrollableContainer(id="conversation-container"):
-            yield Vertical(id="conversation")
+            yield Static(id="conversation")
 
+        # Input container
         with Container(id="input-container"):
-            yield Input(placeholder="Ask the AI assistant...", id="agent-input")
+            yield Input(placeholder="Ask me anything...", id="agent-input")
             yield Button("Send", id="send-button", variant="primary")
 
     def on_mount(self) -> None:

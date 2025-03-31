@@ -1,3 +1,5 @@
+import asyncio
+
 from textual.app import App, ComposeResult
 from textual.widgets import Button, Footer, Header
 
@@ -143,6 +145,82 @@ class TerminatorIDE(App):
         """Open the developer console screen."""
         self.push_screen(DevConsoleScreen())
 
+    def connect_panels(self):
+        """Connect the panels for inter-panel communication."""
+        try:
+            # Get panel references
+            _ = self.query_one("#left-panel")
+            _ = self.query_one("#editor-panel")
+            agent_panel = self.query_one("#agent-panel")
+
+            # Connect the agent context to the app
+            if hasattr(agent_panel, "streaming_agent") and hasattr(
+                agent_panel.streaming_agent, "context"
+            ):
+                agent_panel.streaming_agent.context.app = self
+                print("Successfully connected agent context to app")
+
+            # Register code tools
+            from terminatoride.agent.code_tools import (
+                analyze_code,
+                apply_code_changes,
+                improve_code,
+                suggest_code_changes,
+            )
+
+            # Extend agent tools if tools registry exists
+            if hasattr(agent_panel.streaming_agent, "base_agent") and hasattr(
+                agent_panel.streaming_agent.base_agent, "tools"
+            ):
+                tools = agent_panel.streaming_agent.base_agent.tools
+
+                # Add our code tools - don't add duplicates
+                tool_names = [getattr(t, "name", str(t)) for t in tools]
+
+                for tool in [
+                    analyze_code,
+                    apply_code_changes,
+                    improve_code,
+                    suggest_code_changes,
+                ]:
+                    tool_name = getattr(tool, "name", str(tool))
+                    if tool_name not in tool_names:
+                        tools.append(tool)
+                        print(f"Added tool: {tool_name}")
+
+            print("Panels connected successfully")
+        except Exception as e:
+            print(f"Error connecting panels: {e}")
+            import traceback
+
+            print(traceback.format_exc())
+
+    def on_mount(self):
+        """Handle app mount."""
+        # Connect panels for communication
+        self.connect_panels()
+
+        # Start the event loop monitor
+        self.run_worker(self._setup_event_loop_monitor(), name="event_loop_monitor")
+
+    async def _setup_event_loop_monitor(self):
+        """Set up the event loop monitor as a background worker."""
+        try:
+            from terminatoride.utils.event_loop_monitor import EventLoopMonitor
+
+            monitor = EventLoopMonitor()
+            await monitor.start()
+            print("Event loop monitor started successfully")
+
+            # Keep the worker alive until the app exits
+            while True:
+                await asyncio.sleep(1)
+        except Exception as e:
+            print(f"Error starting event loop monitor: {e}")
+            import traceback
+
+            print(traceback.format_exc())
+
 
 def main():
     # Get configuration
@@ -156,8 +234,10 @@ def main():
         except Exception as e:
             print(f"Warning: Failed to configure SDK tracing: {e}")
 
-    # Create and run the app
+    # Create the app
     app = TerminatorIDE()
+
+    # Run the app - this will start the app and handle setup in on_mount
     app.run()
 
 

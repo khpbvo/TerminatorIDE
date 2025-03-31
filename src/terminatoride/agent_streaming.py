@@ -3,7 +3,6 @@ Streaming implementation for the OpenAI Agent.
 This module extends the OpenAI Agent with streaming capabilities.
 """
 
-import asyncio
 import logging
 import os
 from typing import Any, Callable, Dict, Optional
@@ -15,7 +14,7 @@ from terminatoride.agents.openai_agent import OpenAIAgent, get_openai_agent
 from terminatoride.utils.error_handling import RateLimitHandler
 
 # Set up detailed logging for debugging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("terminatoride.agent_streaming")
 
 # Create a file handler for detailed logging
 try:
@@ -56,6 +55,9 @@ ToolCallCallback = Callable[[Dict[str, Any]], None]
 ToolResultCallback = Callable[[Dict[str, Any]], None]
 HandoffCallback = Callable[[Dict[str, Any]], None]
 
+# Add this at the module level (outside any function)
+_STREAMING_AGENT_INSTANCE = None
+
 
 class StreamingAgent:
     """Provides streaming capabilities for the OpenAI Agent."""
@@ -87,82 +89,85 @@ class StreamingAgent:
             return f"Too many requests. Please try again in {wait_time:.1f} seconds."
 
         try:
-            # Create context dict for the SDK - handle None values
-            context_dict = {}
-            if hasattr(context, "user_query") and context.user_query is not None:
-                context_dict["user_query"] = context.user_query
-
-            # Add file context if available
-            if context.current_file is not None:
-                context_dict["file_content"] = context.current_file.content
-                context_dict["file_path"] = context.current_file.path
-                context_dict["language"] = context.current_file.language
-            elif context.file_content is not None:
-                context_dict["file_content"] = context.file_content
-                context_dict["file_path"] = context.file_path
-                context_dict["language"] = context.file_language
-
-            # Helper function to safely call callbacks
-            async def safe_call_callback(callback, *args, **kwargs):
-                if callback is None:
-                    return
-                if asyncio.iscoroutinefunction(callback):
-                    await callback(*args, **kwargs)
-                else:
-                    callback(*args, **kwargs)
-
-            # Process streaming events
+            # Create a runner for our agent
             runner = Runner()
-            result = await runner.run_streamed(
-                self.base_agent.agent,
-                user_message,
-                context=context_dict,
+
+            # Get run context
+            run_context = context if context is not None else AgentContext()
+
+            # Use the default agent from base_agent
+            agent = self.base_agent.default_agent
+
+            # Execute the streaming run (using same pattern as in OpenAIAgent.generate_response)
+            stream_result = runner.run_streamed(
+                starting_agent=agent, input=user_message, context=run_context
             )
 
-            all_text = ""
-            async for event in result.stream_events():
-                if event.type == "raw_response_event" and hasattr(event.data, "delta"):
-                    all_text += event.data.delta
-                    await safe_call_callback(on_text_delta, event.data.delta)
-                elif event.type == "run_item_stream_event":
-                    if event.item.type == "tool_call_item":
-                        tool_info = {
-                            "name": event.item.tool_name,
-                            "arguments": event.item.tool_arguments,
-                        }
-                        await safe_call_callback(on_tool_call, tool_info)
-                    elif event.item.type == "tool_call_output_item":
-                        result_info = {
-                            "tool_name": event.item.tool_name,
-                            "output": event.item.output,
-                        }
-                        await safe_call_callback(on_tool_result, result_info)
-                elif event.type == "handoff_stream_event":
-                    handoff_info = {
-                        "from_agent": event.source_agent.name,
-                        "to_agent": event.target_agent.name,
-                        "reason": getattr(event, "reason", "No reason provided"),
-                    }
-                    await safe_call_callback(on_handoff, handoff_info)
+            # Process the streaming events
+            final_response = ""
+            async for event in stream_result.stream_events():
+                # Alternative approach if you don't have access to the event classes
+                if hasattr(event, "delta") and on_text_delta:
+                    delta = event.delta
+                    final_response += delta
+                    await on_text_delta(delta)
 
-            return all_text or result.final_output
+                elif hasattr(event, "tool_name") and on_tool_call:
+                    tool_info = {
+                        "name": event.tool_name,
+                        "input": getattr(event, "tool_input", ""),
+                        "id": getattr(event, "tool_call_id", ""),
+                    }
+                    await on_tool_call(tool_info)
+
+                elif (
+                    hasattr(event, "output")
+                    and hasattr(event, "tool_call_id")
+                    and on_tool_result
+                ):
+                    result_info = {
+                        "output": event.output,
+                        "tool_call_id": event.tool_call_id,
+                    }
+                    await on_tool_result(result_info)
+
+                elif (
+                    hasattr(event, "from_agent_id")
+                    and hasattr(event, "to_agent_id")
+                    and on_handoff
+                ):
+                    handoff_info = {
+                        "from_agent": event.from_agent_id,
+                        "to_agent": event.to_agent_id,
+                    }
+                    await on_handoff(handoff_info)
+
+            # Return the final output or accumulated response
+            return stream_result.final_output or final_response
 
         except Exception as e:
-            # Log the specific exception for debugging
-            import traceback
-
-            print(f"Streaming error: {str(e)}")
-            print(traceback.format_exc())
+            # Log and return error
+            logger.error(f"Error in streaming response: {e}", exc_info=True)
             return f"Error processing request: {str(e)}"
 
 
-# Provide a singleton instance
-_default_streaming_agent = None
+def get_streaming_agent():
+    """Get or create a streaming agent (singleton)."""
+    global _STREAMING_AGENT_INSTANCE
+
+    if _STREAMING_AGENT_INSTANCE is None:
+        logger.info("Creating new streaming agent instance")
+        # Initialize the agent
+        _STREAMING_AGENT_INSTANCE = StreamingAgent()
+    else:
+        logger.info("Returning existing streaming agent instance")
+
+    return _STREAMING_AGENT_INSTANCE
 
 
-def get_streaming_agent() -> StreamingAgent:
-    """Get or create the default streaming agent instance."""
-    global _default_streaming_agent
-    if _default_streaming_agent is None:
-        _default_streaming_agent = StreamingAgent()
-    return _default_streaming_agent
+# Add this function to the module
+def reset_streaming_agent_for_tests():
+    """Reset the streaming agent singleton (for testing only)."""
+    global _STREAMING_AGENT_INSTANCE
+    _STREAMING_AGENT_INSTANCE = None
+    logger.info("Reset streaming agent singleton for testing")

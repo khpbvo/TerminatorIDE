@@ -50,3 +50,22 @@ htmlcov/
 terminal-agent.py
 utilities.py
 Diff.py
+implementations/Diff lib/diff-manager.py
+implementations/Diff lib/command-helper.py
+.gitignore
+.gitignore
+implementations/Diff lib/diff-view-screen.py
+implementations/Diff lib/editor-panel-updates.py
+implementations/Diff lib/Integration Diff.md
+implementations/Diff lib/streaming-agent-updates.py
+implementations/File explorer/agent-context-update.py
+implementations/File explorer/agent-file-focus.py
+implementations/Diff lib/code-tools.py
+implementations/Diff lib/app-updates.py
+implementations/Diff lib/agent-context-updates.py
+implementations/File explorer/agent-navigate-tool.py
+implementations/File explorer/file-context-import.py
+implementations/File explorer/file-editor-integration.py
+.gitignore
+implementations/File explorer/register-tools.py
+src/a/count_words.py

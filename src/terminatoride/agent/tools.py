@@ -223,6 +223,155 @@ async def get_current_file(ctx: RunContextWrapper[Any]) -> FileInfo:
         return {"path": "", "content": "", "size": 0, "is_directory": False}
 
 
+@function_tool
+async def navigate_to_found_file(ctx: RunContextWrapper[Any], file_path: None) -> str:
+    """
+    Navigate to (open) a specific file in the editor.
+    Use this after finding files with find_in_project to open them.
+
+    Args:
+        file_path: Path to the file to navigate to
+
+    Returns:
+        Success or error message
+    """
+    with trace(
+        workflow_name="Tool: navigate_to_found_file", metadata={"path": file_path}
+    ):
+        try:
+            # Get the agent panel (which has our focus_file method)
+            agent_panel = ctx.app.query_one("#agent-panel")
+
+            # Use the async method to focus the file
+            await agent_panel.focus_file(file_path)
+
+            return f"Successfully opened file: {file_path}"
+        except Exception as e:
+            return f"Error navigating to file: {str(e)}"
+
+
+@function_tool
+async def find_in_project(
+    ctx: RunContextWrapper[Any],
+    search_pattern: str,
+    file_pattern: str = None,
+    max_results: int = None,
+) -> List[FileInfo]:
+    """
+    Search for files matching a pattern in the project directory.
+
+    Args:
+        search_pattern: Text to search for in files
+        file_pattern: File pattern to match (e.g., "*.py", "*.md")
+        max_results: Maximum number of results to return
+
+    Returns:
+        List of matching files with content snippets
+    """
+    with trace(
+        workflow_name="Tool: find_in_project", metadata={"pattern": search_pattern}
+    ):
+        try:
+            # Determine the project directory
+            project_root = "."
+            if hasattr(ctx.context, "project") and hasattr(
+                ctx.context.project, "root_path"
+            ):
+                if ctx.context.project.root_path:
+                    project_root = ctx.context.project.root_path
+
+            # Use grep or similar to search files
+            cmd = ["grep", "-r", "-l", search_pattern]
+
+            # Add file pattern filtering
+            if file_pattern != "*":
+                cmd.extend(["--include", file_pattern])
+
+            # Set the directory to search
+            cmd.append(project_root)
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+
+            matching_files = []
+            count = 0
+
+            for file_path in result.stdout.strip().split("\n"):
+                if not file_path or count >= max_results:
+                    break
+
+                path = Path(file_path.strip())
+                if path.exists() and path.is_file():
+                    try:
+                        # Read file content
+                        content = path.read_text(encoding="utf-8", errors="replace")
+
+                        # Extract a snippet containing the matched text
+                        lines = content.splitlines()
+                        snippet_lines = []
+                        found = False
+
+                        for i, line in enumerate(lines):
+                            if search_pattern.lower() in line.lower():
+                                # Add context before and after the matching line
+                                start = max(0, i - 2)
+                                end = min(len(lines), i + 3)
+
+                                if start > 0:
+                                    snippet_lines.append("...")
+
+                                snippet_lines.extend(lines[start:end])
+
+                                if end < len(lines):
+                                    snippet_lines.append("...")
+
+                                found = True
+                                break
+
+                        # If pattern not found in line-by-line search, just include first few lines
+                        if not found:
+                            snippet_lines = lines[:5] + (
+                                ["..."] if len(lines) > 5 else []
+                            )
+
+                        matching_files.append(
+                            {
+                                "path": str(path),
+                                "content": "\n".join(snippet_lines),
+                                "size": path.stat().st_size,
+                                "is_directory": False,
+                            }
+                        )
+
+                        count += 1
+
+                    except Exception:
+                        # Skip files that can't be read
+                        continue
+
+            return (
+                matching_files
+                if matching_files
+                else [
+                    {
+                        "path": "",
+                        "content": f"No files matching '{search_pattern}' were found.",
+                        "size": 0,
+                        "is_directory": False,
+                    }
+                ]
+            )
+
+        except Exception as e:
+            return [
+                {
+                    "path": "",
+                    "content": f"Error searching files: {str(e)}",
+                    "size": 0,
+                    "is_directory": False,
+                }
+            ]
+
+
 def register_tools():
     """Register and return all available tools."""
     # Create proper tool objects from the function tools
@@ -295,6 +444,8 @@ def register_tools():
         list_directory,
         execute_python,
         get_current_file,
+        navigate_to_found_file,
+        find_in_project,  # Add our new search tool
     ]
 
     # Convert them to proper tools

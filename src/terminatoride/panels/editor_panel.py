@@ -10,8 +10,10 @@ from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.message import Message
 from textual.reactive import reactive
-from textual.widgets import Input, Label, Static, TextArea
+from textual.widgets import DirectoryTree, Input, Label, Static, TextArea
 from textual.widgets.text_area import Selection, TextAreaTheme
+
+from terminatoride.agent.context import FileContext
 
 # Try to import rich syntax highlighting components
 try:
@@ -243,9 +245,9 @@ class EditorPanel(Container):
     }
 
     # Linting error markers
-    LINT_ERROR_MARKER = "🔴"
-    LINT_WARNING_MARKER = "🟠"
-    LINT_INFO_MARKER = "🔵"
+    # LINT_ERROR_MARKER = "🔴"
+    # LINT_WARNING_MARKER = "🟠"
+    # LINT_INFO_MARKER = "🔵"
 
     DEFAULT_CSS = """
     EditorPanel {
@@ -538,9 +540,9 @@ if __name__ == "__main__":
         # Code folding state
         self._folded_regions = set()
         # Linting state
-        self._lint_markers = {}
-        self._last_lint_time = 0
-        self._lint_delay = 1.0  # Seconds to wait before linting again
+        # self._lint_markers = {}
+        # self._last_lint_time = 0
+        # self._lint_delay = 1.0  # Seconds to wait before linting again
         # Minimap state
         self._minimap_visible = False
         self._register_custom_themes()
@@ -1326,23 +1328,6 @@ def sample_function():
 
             self.app.notify(f"Folded {fold_type} region", severity="information")
 
-    # def action_unfold_current(self) -> None:
-    #     """Unfold the current folded region."""
-    #     editor = self.query_one("#editor", TextArea)
-    #     cursor_location = editor.cursor_location
-    #     current_line_idx = cursor_location[0]
-
-    #     # Check if cursor is on a folded region
-    #     for start, end in self._folded_regions:
-    #         if start == current_line_idx:
-    #             # This is a folded region, unfold it
-    #             self._folded_regions.remove((start, end))
-
-    #             # For a real implementation, we would store the original text
-    #             # and restore it. For this demo, we'll show a notification
-    #             self.app.notify("Unfolded region", severity="information")
-    #             return
-
     def action_select_current_line(self) -> None:
         """Select the current line."""
         editor = self.query_one("#editor", TextArea)
@@ -1425,94 +1410,6 @@ def sample_function():
             # Highlight the first occurrence
             self._current_search_index = 0
             self._highlight_current_match()
-
-    # def action_check_code_quality(self) -> None:
-    #     """Check code quality using linters."""
-    #     self._run_lint_check()
-
-    # def _schedule_lint_check(self) -> None:
-    #     """Schedule a lint check if enough time has passed."""
-    #     current_time = time.time()
-    #     if current_time - self._last_lint_time > self._lint_delay:
-    #         self._run_lint_check()
-    #         self._last_lint_time = current_time
-
-    # def _run_lint_check(self) -> None:
-    #     """Run linting check on the current code."""
-    #     editor = self.query_one("#editor", TextArea)
-    #     language = self.current_language
-
-    #     # Clear previous lint markers
-    #     self._lint_markers = {}
-
-    #     if language == "python" and HAS_PYLINT:
-    #         # Run pylint on the current Python code
-    #         code = editor.text
-
-    #         # Skip if code is too short
-    #         if len(code.strip()) < 10:
-    #             return
-
-    #         try:
-    #             # Create a temporary file with the code
-    #             temp_file = Path("temp_lint_check.py")
-    #             temp_file.write_text(code)
-
-    #             # Use StringIO to capture pylint output
-    #             from io import StringIO
-
-    #             pylint_output = StringIO()
-    #             reporter = TextReporter(pylint_output)
-
-    #             # Run pylint
-    #             try:
-    #                 PylintRun(
-    #                     ["--disable=all", "--enable=E", temp_file], reporter=reporter
-    #                 )
-    #                 lint_output = pylint_output.getvalue()
-
-    #                 # Parse output to find errors
-    #                 for line in lint_output.splitlines():
-    #                     if ":" in line:
-    #                         parts = line.split(":")
-    #                         if len(parts) >= 3 and parts[1].strip().isdigit():
-    #                             line_num = int(parts[1].strip()) - 1  # 0-based index
-    #                             message = ":".join(parts[2:]).strip()
-    #                             self._lint_markers[line_num] = {
-    #                                 "type": "error",
-    #                                 "message": message,
-    #                             }
-    #             except Exception as e:
-    #                 print(f"Pylint error: {e}")
-
-    #             # Clean up
-    #             temp_file.unlink(missing_ok=True)
-
-    #             # Update editor to show lint markers
-    #             self._show_lint_markers()
-    #         except Exception as e:
-    #             print(f"Linting error: {e}")
-
-    # def _show_lint_markers(self) -> None:
-    #     """Show lint markers in the editor."""
-    #     if not self._lint_markers:
-    #         return
-
-    #     # For a full implementation, we would add visual markers to the editor
-    #     # For this demo, we'll just show a notification with the number of issues
-    #     error_count = sum(
-    #         1 for marker in self._lint_markers.values() if marker["type"] == "error"
-    #     )
-    #     warning_count = sum(
-    #         1 for marker in self._lint_markers.values() if marker["type"] == "warning"
-    #     )
-
-    #     message = f"Found {error_count} errors"
-    #     if warning_count > 0:
-    #         message += f" and {warning_count} warnings"
-
-    #     if error_count > 0 or warning_count > 0:
-    #         self.app.notify(message, severity="error" if error_count > 0 else "warning")
 
     def action_save(self) -> None:
         """Save the current file."""
@@ -1774,83 +1671,107 @@ def sample_function():
         """Find the previous search match."""
         self._find_previous()
 
-    # def action_fold_current(self) -> None:
-    #     """Fold the current code region."""
-    #     editor = self.query_one("#editor", TextArea)
-    #     cursor_location = editor.cursor_location
-    #     current_line_idx = cursor_location[0]
+    def show_diff(
+        self, original_content: str, modified_content: str, explanation: str = ""
+    ):
+        """
+        Show a diff between original and modified content.
 
-    #     # Find foldable region at current line
-    #     language = self.current_language
-    #     if language not in self.FOLD_MARKERS:
-    #         return
+        Args:
+            original_content: The original content
+            modified_content: The modified content
+            explanation: Optional explanation of the changes
+        """
+        from terminatoride.screens.diff_view_screen import DiffViewScreen
+        from terminatoride.utils.diff_manager import DiffManager
 
-    #     current_line = editor.document.get_line(current_line_idx)
-    #     if not current_line:
-    #         return
+        # Generate diff
+        diff_text = DiffManager.generate_diff(original_content, modified_content)
 
-    #     # Check if line matches any fold pattern
-    #     fold_type = None
-    #     for pattern, fold_name in self.FOLD_MARKERS.get(language, []):
-    #         if re.match(pattern, current_line):
-    #             fold_type = fold_name
-    #             break
+        # Create a callback to apply the diff
+        def apply_diff():
+            self.apply_changes(modified_content)
+            self.app.notify("Changes applied successfully", severity="success")
 
-    #     if not fold_type:
-    #         return
+        # Show the diff view screen
+        self.app.push_screen(
+            DiffViewScreen(
+                diff_text=diff_text,
+                apply_callback=apply_diff,
+                title="Code Changes",
+                explanation=explanation,
+            )
+        )
 
-    #     # Find the end of the fold region
-    #     start_indent = len(current_line) - len(current_line.lstrip())
-    #     end_line_idx = current_line_idx
+    def apply_changes(self, new_content: str):
+        """
+        Apply changes to the editor.
 
-    #     for i in range(current_line_idx + 1, len(editor.document.lines)):
-    #         line = editor.document.get_line(i)
-    #         if not line or line.isspace():
-    #             continue
+        Args:
+            new_content: The new content to set
+        """
+        editor = self.query_one("#editor", TextArea)
 
-    #         line_indent = len(line) - len(line.lstrip())
-    #         if line_indent <= start_indent:
-    #             # Found the end of the block
-    #             end_line_idx = i - 1
-    #             break
+        # Save current cursor position and selection
+        cursor_pos = editor.cursor_location
+        selection = editor.selection
 
-    #         if i == len(editor.document.lines) - 1:
-    #             # Last line of the document
-    #             end_line_idx = i
+        # Update text
+        editor.text = new_content
 
-    #     if end_line_idx > current_line_idx:
-    #         # Add to folded regions
-    #         fold_region = (current_line_idx, end_line_idx)
-    #         self._folded_regions.add(fold_region)
+        # Try to restore cursor position or place it at a reasonable position
+        try:
+            if cursor_pos[0] < len(editor.text.splitlines()):
+                editor.selection = selection
+            else:
+                # Place at end of file
+                last_line = len(editor.text.splitlines()) - 1
+                if last_line >= 0:
+                    last_pos = len(editor.text.splitlines()[last_line])
+                    editor.selection = Selection(
+                        (last_line, last_pos), (last_line, last_pos)
+                    )
+        except Exception:
+            # Default to beginning of file on error
+            editor.selection = Selection((0, 0), (0, 0))
 
-    #         # Hide folded region lines
-    #         folded_text = f"{current_line} [...] "
+        # Update state
+        self.is_modified = True
 
-    #         # Replace the folded region with a placeholder
-    #         lines = editor.text.split("\n")
-    #         new_lines = (
-    #             lines[:current_line_idx] + [folded_text] + lines[end_line_idx + 1 :]
-    #         )
-    #         editor.text = "\n".join(new_lines)
+    def set_content(self, content: str) -> None:
+        """
+        Set the content of the editor.
 
-    #         # Set cursor at the fold line
-    #         editor.selection = Selection((current_line_idx, 0), (current_line_idx, 0))
+        Args:
+            content: The new content to display
+        """
+        if hasattr(self, "editor"):
+            self.editor.text = content
+            self.editor.refresh()
+            # Update current file context if needed
+            if hasattr(self, "current_file"):
+                self.current_file.content = content
 
-    #         self.app.notify(f"Folded {fold_type} region", severity="information")
+    def on_file_selected(self, event: DirectoryTree.FileSelected) -> None:
+        """Handle file selection events from the directory tree."""
+        path = event.path
+        try:
+            # Read the file content
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
 
-    # def action_unfold_current(self) -> None:
-    #     """Unfold the current folded region."""
-    #     editor = self.query_one("#editor", TextArea)
-    #     cursor_location = editor.cursor_location
-    #     current_line_idx = cursor_location[0]
+            # Open the file in the editor
+            self.open_file(str(path), content)
 
-    #     # Check if cursor is on a folded region
-    #     for start, end in self._folded_regions:
-    #         if start == current_line_idx:
-    #             # This is a folded region, unfold it
-    #             self._folded_regions.remove((start, end))
+            # Store this as the current file that other components can access
+            self.current_file = FileContext(
+                path=str(path),
+                content=content,
+                language=self._detect_language(str(path)),
+                cursor_position=0,
+            )
 
-    #             # For a real implementation, we would store the original text
-    #             # and restore it. For this demo, we'll show a notification
-    #             self.app.notify("Unfolded region", severity="information")
-    #             return
+            # Log the event
+            print(f"EditorPanel opened file: {path}")
+        except Exception as e:
+            self.app.notify(f"Error opening file: {str(e)}", severity="error")

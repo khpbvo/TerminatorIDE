@@ -1,129 +1,172 @@
-"""Left panel component for TerminatorIDE."""
+"""Left panel for TerminatorIDE with file browser, git integration, and terminal."""
+
+import os
 
 from textual.app import ComposeResult
-from textual.binding import Binding
-from textual.containers import Container, Horizontal
-from textual.widget import Widget
-from textual.widgets import Button, DirectoryTree, Static
-
-from ..components.file_explorer import FileExplorer
-from ..utils.logging import setup_logger
-
-# Set up logger
-logger = setup_logger("left_panel", "left_panel.log")
+from textual.containers import Container, Vertical
+from textual.widgets import DirectoryTree, Label, Static, TabbedContent, TabPane
 
 
-class LeftPanel(Widget):
-    """The left panel of the IDE containing file explorer, git integration, and SSH."""
+class LeftPanel(Container):
+    """The left panel of the IDE containing file browser, git info, and terminal."""
 
-    BINDINGS = [
-        Binding("tab", "next_tab", "Next Tab"),
-        Binding("shift+tab", "prev_tab", "Previous Tab"),
-    ]
+    DEFAULT_CSS = """
+    LeftPanel {
+        width: 25%;  /* Change from 100% to 25% */
+        height: 100%;
+        background: #252526;
+        color: #cccccc;
+    }
 
-    # Re-export DirectoryTree.FileSelected message
-    FileSelected = DirectoryTree.FileSelected
+    #panel-title {
+        background: #007acc;
+        color: #ffffff;
+        text-align: center;
+        padding: 1 0;
+        height: auto;
+    }
+
+    TabbedContent {
+        width: 100%;
+        height: 1fr;
+    }
+
+    DirectoryTree {
+        width: 100%;
+        height: 1fr;  /* Change from 100% to 1fr */
+    }
+
+    #git-info {
+        width: 100%;
+        padding: 1;
+        height: auto;
+        background: #303030;
+        border-top: solid #3f3f3f;
+    }
+
+    #branch-info {
+        color: #e5c07b;
+    }
+
+    #status-info {
+        color: #98c379;
+    }
+
+    #terminal-container {
+        width: 100%;
+        height: 100%;
+    }
+    """
 
     def __init__(self, *args, **kwargs):
-        """Initialize the left panel."""
         super().__init__(*args, **kwargs)
-        self.current_tab = "files"
-        logger.info("LeftPanel initialized")
+        self.directory_path = os.path.expanduser("~")
 
     def compose(self) -> ComposeResult:
         """Compose the left panel widget."""
-        logger.info("Composing LeftPanel")
+        with Vertical():
+            yield Label("TerminatorIDE", id="panel-title")
 
-        # Ultra-compact tab buttons (docked to top)
-        with Horizontal(id="tab-buttons"):
-            yield Button("Files", id="files-tab-btn", variant="primary")
-            yield Button("Git", id="git-tab-btn", variant="default")
-            yield Button("SSH", id="ssh-tab-btn", variant="default")
+            with TabbedContent():
+                with TabPane("Files", id="files-tab"):
+                    # Fix: Actually yield the DirectoryTree widget
+                    yield DirectoryTree(self.directory_path, id="directory-tree")
 
-        # Content area for the selected tab
-        with Container(id="tab-content"):
-            # File Explorer (initially visible)
-            yield FileExplorer(id="file-explorer", classes="tab-panel")
+                with TabPane("Git", id="git-tab"):
+                    yield Static("Git integration will appear here", id="git-info")
+                    yield Label("Branch: main", id="branch-info")
+                    yield Label("Status: Clean", id="status-info")
 
-            # Git Integration (initially hidden)
-            yield Static(
-                "Git integration coming soon...",
-                id="git-panel",
-                classes="tab-panel hidden",
-            )
-
-            # SSH Remote Editing (initially hidden)
-            yield Static(
-                "SSH remote editing coming soon...",
-                id="ssh-panel",
-                classes="tab-panel hidden",
-            )
+                with TabPane("Terminal", id="terminal-tab"):
+                    yield Static(
+                        "Terminal access will appear here", id="terminal-container"
+                    )
 
     def on_mount(self) -> None:
-        """Called when the widget is mounted."""
-        logger.info("LeftPanel mounted")
+        """Handle panel mount."""
+        print("\n----- DEBUGGING LEFT PANEL -----")
+        print("LeftPanel mounting...")
 
-        # Connect tab button handlers
-        self.query_one("#files-tab-btn").on_click = self._show_files_tab
-        self.query_one("#git-tab-btn").on_click = self._show_git_tab
-        self.query_one("#ssh-tab-btn").on_click = self._show_ssh_tab
+        try:
+            # Check TabbedContent initialization
+            tabs = self.query_one(TabbedContent)
+            print(f"Found tabs: {tabs}")
+            print(f"Tab IDs: {[tab.id for tab in tabs.query(TabPane)]}")
+            print(f"Initial active tab: {tabs.active}")
 
-        # Set initial focus to the file explorer
-        self.query_one("#file-explorer").focus()
+            # Force tab activation with a slight delay
+            async def activate_tab():
+                import asyncio
 
-    def _show_files_tab(self) -> None:
-        """Show the files tab."""
-        logger.debug("Show files tab called")
-        self._set_active_tab("files")
+                await asyncio.sleep(0.5)
+                tabs.active = "files-tab"
+                print(f"After delay, active tab: {tabs.active}")
 
-    def _show_git_tab(self) -> None:
-        """Show the git tab."""
-        logger.debug("Show git tab called")
-        self._set_active_tab("git")
+            self.app.run_worker(activate_tab())
 
-    def _show_ssh_tab(self) -> None:
-        """Show the ssh tab."""
-        logger.debug("Show SSH tab called")
-        self._set_active_tab("ssh")
+            # Rest of your code...
+        except Exception as e:
+            print(f"Error initializing tabs: {e}")
+            import traceback
 
-    def _set_active_tab(self, tab_id: str) -> None:
-        """Set the active tab."""
-        logger.info(f"Switching to tab: {tab_id}")
+            print(traceback.format_exc())
 
-        # Update button styles
-        self.query_one("#files-tab-btn").variant = (
-            "primary" if tab_id == "files" else "default"
-        )
-        self.query_one("#git-tab-btn").variant = (
-            "primary" if tab_id == "git" else "default"
-        )
-        self.query_one("#ssh-tab-btn").variant = (
-            "primary" if tab_id == "ssh" else "default"
-        )
+        try:
+            tree = self.query_one(DirectoryTree)
+            print(f"DirectoryTree representation: {tree!r}")
+            print(f"DirectoryTree path: {tree.path}")
+            print(f"DirectoryTree visible: {tree.styles.visibility}")
+            print(f"DirectoryTree display: {tree.styles.display}")
 
-        # Update panel visibility using classes
-        for panel_id in ["file-explorer", "git-panel", "ssh-panel"]:
-            panel = self.query_one(f"#{panel_id}")
-            if (
-                f"{tab_id}-tab-btn".replace("files-tab-btn", "file-explorer")
-                == panel_id
-            ):
-                panel.remove_class("hidden")
-            else:
-                panel.add_class("hidden")
+            # Force visibility
+            tree.styles.visibility = "visible"
+            tree.styles.display = "block"
+        except Exception as e:
+            print(f"Error checking DirectoryTree: {e}")
 
-        # Set focus to the active panel if it's the file explorer
-        if tab_id == "files":
-            self.query_one("#file-explorer").focus()
-
-        # Update current tab
-        self.current_tab = tab_id
+        print("----- END DEBUGGING LEFT PANEL -----\n")
 
     def on_directory_tree_file_selected(
         self, event: DirectoryTree.FileSelected
     ) -> None:
-        """Handle file selection events from the directory tree."""
-        logger.info(f"LeftPanel received file selection: {event.path}")
-        # Forward the message
-        self.current_file = event.path
-        self.post_message(event)
+        """Handle file selection in the directory tree."""
+        # Forward the event to the editor panel
+        editor_panel = self.app.query_one("#editor-panel")
+        if hasattr(editor_panel, "on_file_selected"):
+            editor_panel.on_file_selected(event)
+        else:
+            self.app.notify(
+                "Editor panel doesn't support file selection", severity="warning"
+            )
+
+    def change_directory(self, path: str) -> None:
+        """Change the current directory in the file browser."""
+        directory_tree = self.query_one(DirectoryTree)
+        try:
+            real_path = os.path.abspath(os.path.expanduser(path))
+            if os.path.isdir(real_path):
+                directory_tree.path = real_path
+                # Refresh the tree
+                directory_tree.reload()
+            else:
+                self.app.notify(f"Not a valid directory: {path}", severity="error")
+        except Exception as e:
+            self.app.notify(f"Error changing directory: {str(e)}", severity="error")
+
+    def on_tabbed_content_tab_activated(
+        self, event: TabbedContent.TabActivated
+    ) -> None:
+        """Handle tab activation."""
+        print(f"Tab activated: {event.tab.id}")
+
+        if event.tab.id == "files-tab":
+            # Make sure DirectoryTree is visible
+            directory_tree = self.query_one(DirectoryTree)
+            directory_tree.styles.visibility = "visible"
+            directory_tree.styles.display = "block"
+
+            # Reload in case it wasn't loaded
+            try:
+                directory_tree.reload()
+            except Exception as e:
+                print(f"Error reloading DirectoryTree: {e}")

@@ -74,6 +74,7 @@
     font-weight: bold;
 }
 
+/* Agent Panel Structure - Fix layout */
 #agent-panel {
     width: 100%;
     height: 100%;
@@ -81,7 +82,78 @@
     background: var(--surface);
     color: var(--text);
     padding: 1px;
+    display: grid;
+    grid-template-areas:
+        "header"
+        "body"
+        "footer";
+    grid-template-rows: auto 1fr auto;
 }
+
+#agent-title {
+    text-align: center;
+    background: var(--primary-darken-2);
+    padding: 1px;
+    grid-area: header;
+}
+
+/* Conversation Container */
+#conversation-container {
+    height: 100%;
+    width: 100%;
+    border: 1px solid var(--primary);
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    grid-area: body;
+}
+
+#conversation {
+    width: 100%;
+    padding: 1px;
+}
+
+/* Input Container */
+#input-container {
+    height: auto;
+    width: 100%;
+    padding: 6px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-darken-1);
+    border-top: 1px solid var(--primary);
+    grid-area: footer;
+}
+
+#agent-input {
+    border: 1px solid var(--primary);
+    flex-grow: 1;
+    min-height: 2em;
+    margin: 0;
+    width: auto;
+}
+
+#send-button {
+    width: auto;
+    min-width: 6em;
+    margin: 0;
+    align-self: center;
+}
+
+/* Remove or comment out the .horizontal-input class entirely */
+/*
+.horizontal-input {
+    layout: horizontal;
+    height: auto;
+    width: 100%;
+    padding: 4px;
+    background: var(--surface-darken-1);
+    border-top: 1px solid var(--primary);
+}
+*/
 
 /* Status bar styling */
 #status-bar {
@@ -329,36 +401,6 @@ Tree .tree--cursor {
 }
 
 /* Streaming Agent Panel Specific Styles */
-/* Conversation Container */
-#conversation-container {
-    height: 100%;
-    width: 100%;
-    border: 1px solid var(--primary);
-    margin-bottom: 1px;
-    padding: 0;
-}
-
-#conversation {
-    width: 100%;
-    padding: 1px;
-}
-
-/* Agent Input Area */
-#input-container {
-    height: auto;
-    width: 100%;
-    margin-top: 1px;
-}
-
-#agent-input {
-    border: 1px solid var(--primary);
-    margin-bottom: 1px;
-}
-
-#send-button {
-    margin-left: 1px;
-    min-width: 10em;
-}
 
 /* Message Styling */
 .agent-message {

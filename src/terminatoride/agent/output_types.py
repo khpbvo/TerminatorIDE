@@ -184,7 +184,7 @@ class ErrorDiagnosis(BaseModel):
     )
 
 
-class TestResult(BaseModel):
+class ExecutionTestResult(BaseModel):
     """Result of a test case."""
 
     test_name: str = Field(description="Name of the test")
@@ -197,7 +197,7 @@ class TestResult(BaseModel):
     )
 
 
-class TestSuiteResult(BaseModel):
+class ExecutionTestSuiteResult(BaseModel):
     """Results of running a test suite."""
 
     total_tests: int = Field(description="Total number of tests run")
@@ -207,7 +207,9 @@ class TestSuiteResult(BaseModel):
         None, description="Number of tests that were skipped"
     )
     execution_time: float = Field(description="Total execution time in seconds")
-    test_results: List[TestResult] = Field(description="Individual test results")
+    test_results: List[ExecutionTestResult] = Field(
+        description="Individual test results"
+    )
     summary: str = Field(description="Summary of the test results")
 
 

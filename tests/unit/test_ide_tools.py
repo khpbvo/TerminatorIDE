@@ -460,6 +460,7 @@ class TestIdeTools:
                         "search_text": "search_term",
                         "file_pattern": "*.py",
                         "case_sensitive": False,
+                        "exclude_patterns": [],  # Add this - explicit empty list
                     }
                 ),
             )
@@ -612,15 +613,29 @@ class TestIdeTools:
     @pytest.mark.asyncio
     async def test_delete_file(self, mock_context, temp_file):
         """Test delete_file function."""
+        # Make sure file exists before test
+        assert temp_file.exists()
+
         with patch.object(
             delete_file, "on_invoke_tool", AsyncMock(wraps=delete_file.on_invoke_tool)
         ):
             result = await delete_file.on_invoke_tool(
-                mock_context, json.dumps({"path": str(temp_file)})
+                mock_context,
+                json.dumps(
+                    {
+                        "path": str(temp_file),
+                        "recursive": False,  # Add the required parameter
+                    }
+                ),
             )
 
+            # Give the filesystem a moment to update
+            import time
+
+            time.sleep(0.1)
+
             # Verify file was deleted
-            assert not temp_file.exists()
+            assert not temp_file.exists(), f"File at {temp_file} still exists"
             assert "Successfully deleted" in result
 
     @pytest.mark.asyncio
@@ -670,7 +685,8 @@ class TestIdeTools:
             run_command, "on_invoke_tool", AsyncMock(wraps=run_command.on_invoke_tool)
         ):
             result = await run_command.on_invoke_tool(
-                mock_context, json.dumps({"command": "echo 'test'"})
+                mock_context,
+                json.dumps({"command": "echo 'test'", "working_dir": None}),
             )
 
             # Verify command was executed
@@ -691,7 +707,8 @@ class TestIdeTools:
             run_command, "on_invoke_tool", AsyncMock(wraps=run_command.on_invoke_tool)
         ):
             result = await run_command.on_invoke_tool(
-                mock_context, json.dumps({"command": "invalid_command"})
+                mock_context,
+                json.dumps({"command": "invalid_command", "working_dir": None}),
             )
 
             # Verify command execution was attempted
@@ -713,7 +730,7 @@ class TestIdeTools:
             run_command, "on_invoke_tool", AsyncMock(wraps=run_command.on_invoke_tool)
         ):
             result = await run_command.on_invoke_tool(
-                mock_context, json.dumps({"command": "sleep 100"})
+                mock_context, json.dumps({"command": "sleep 100", "working_dir": None})
             )
 
             # Verify error message about timeout

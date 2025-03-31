@@ -362,8 +362,8 @@ async def move_cursor(ctx: RunContextWrapper[AgentContext], position: int) -> st
 async def find_in_file(
     ctx: RunContextWrapper[AgentContext],
     search_text: str,
-    case_sensitive: Optional[bool],  # No default value
-    whole_word: Optional[bool],  # No default value
+    case_sensitive: Optional[bool] = None,
+    whole_word: Optional[bool] = None,
 ) -> str:
     """Find occurrences of text in the current file."""
     # Set defaults inside the function
@@ -379,45 +379,58 @@ async def find_in_file(
                 return "Error: No file is currently open"
 
             content = ctx.context.current_file.content
+
+            # Split content into lines
             lines = content.splitlines()
 
-            # Prepare regex pattern based on options
+            # Prepare search parameters
             if whole_word:
+                # Create a regex pattern for whole word matching
+                import re
+
                 pattern = r"\b" + re.escape(search_text) + r"\b"
+                flags = 0 if case_sensitive else re.IGNORECASE
+                search_regex = re.compile(pattern, flags)
+                matches = []
+
+                for i, line in enumerate(lines):
+                    if search_regex.search(line):
+                        matches.append((i + 1, line))
             else:
-                pattern = re.escape(search_text)
+                # Simple string search
+                matches = []
+                for i, line in enumerate(lines):
+                    # Handle case sensitivity
+                    line_to_search = line if case_sensitive else line.lower()
+                    text_to_find = (
+                        search_text if case_sensitive else search_text.lower()
+                    )
 
-            flags = 0 if case_sensitive else re.IGNORECASE
-            regex = re.compile(pattern, flags)
-
-            # Find matches
-            matches = []
-            for i, line in enumerate(lines):
-                if regex.search(line):
-                    matches.append((i + 1, line.strip()))
+                    if text_to_find in line_to_search:
+                        matches.append((i + 1, line))
 
             # Generate results
             if not matches:
-                return f"No occurrences of '{search_text}' found"
+                return f"No occurrences of '{search_text}' found in the current file"
 
             result = f"Found {len(matches)} occurrences of '{search_text}':\n\n"
+
             for line_num, line_text in matches:
-                result += f"Line {line_num}: {line_text}\n"
+                result += f"Line {line_num}: {line_text.strip()}\n"
 
             return result
-        except re.error as e:
-            return f"Error in search pattern: {str(e)}"
+
         except Exception as e:
-            return f"Error searching file: {str(e)}"
+            return f"Error searching in file: {str(e)}"
 
 
 @function_tool
 async def find_in_project(
     ctx: RunContextWrapper[AgentContext],
     search_text: str,
-    file_pattern: Optional[str],
-    case_sensitive: Optional[bool],
-    exclude_patterns: Optional[List[str]],
+    file_pattern: Optional[str] = None,
+    case_sensitive: Optional[bool] = None,
+    exclude_patterns: Optional[List[str]] = None,
 ) -> str:
     """
     Find occurrences of text across files in the project.
@@ -434,6 +447,7 @@ async def find_in_project(
     # Set defaults inside the function
     file_pattern = file_pattern if file_pattern is not None else "*.*"
     case_sensitive = case_sensitive if case_sensitive is not None else False
+    exclude_patterns = exclude_patterns if exclude_patterns is not None else []
 
     with trace(
         workflow_name="Tool: find_in_project",

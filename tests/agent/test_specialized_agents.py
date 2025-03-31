@@ -7,6 +7,9 @@ from unittest.mock import patch
 from agents import Agent
 
 from terminatoride.agent.output_types import (
+    ExecutionTestSuiteResult,  # Changed from TestSuiteResult
+)
+from terminatoride.agent.output_types import (
     CodeAnalysisResult,
     DocumentationResult,
     ErrorDiagnosis,
@@ -14,7 +17,6 @@ from terminatoride.agent.output_types import (
     ProjectSummary,
     RefactoringPlan,
     SearchResults,
-    TestSuiteResult,
 )
 from terminatoride.agent.specialized_agents import SpecializedAgents
 
@@ -113,7 +115,7 @@ class TestSpecializedAgents:
 
         assert kwargs["name"] == "Test Runner"
         assert "testing expert" in kwargs["instructions"].lower()
-        assert kwargs["output_type"] == TestSuiteResult
+        assert kwargs["output_type"] == ExecutionTestSuiteResult
 
     @patch("terminatoride.agent.specialized_agents.Agent")
     def test_create_search_agent(self, mock_agent):

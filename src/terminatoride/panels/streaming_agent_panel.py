@@ -6,7 +6,7 @@ This panel displays real-time responses from the AI assistant.
 import asyncio
 
 from textual.app import ComposeResult
-from textual.containers import Container, ScrollableContainer, Vertical
+from textual.containers import Container, ScrollableContainer, VerticalScroll
 from textual.message import Message
 from textual.widgets import Button, Input, Label, LoadingIndicator, Static
 
@@ -34,9 +34,12 @@ class StreamingAgentPanel(Container):
         """Compose the streaming agent panel widget."""
         yield Label("AI Assistant", id="agent-title")
 
+        # Conversation container should take up all available space
         with ScrollableContainer(id="conversation-container"):
-            yield Vertical(id="conversation")
+            yield VerticalScroll(id="conversation")
 
+        # Input container with horizontal layout - DO NOT add the horizontal-input class here
+        # Instead, rely solely on the CSS for styling
         with Container(id="input-container"):
             yield Input(placeholder="Ask the AI assistant...", id="agent-input")
             yield Button("Send", id="send-button", variant="primary")
@@ -130,64 +133,41 @@ class StreamingAgentPanel(Container):
     async def _process_streaming_response(self, user_message: str) -> None:
         """Process the streaming response from agent."""
         try:
-            # Add debug message to conversation
-            conversation = self.query_one("#conversation")
-            debug_widget = Static(
-                "Debug: Starting streaming request...", classes="debug-message"
-            )
-            conversation.mount(debug_widget)
-
-            # Create much simpler wrapper callbacks
+            # Create wrapper callbacks without debug widget updates
             async def debug_text_delta(delta: str):
-                # First update the debug widget
-                debug_widget.update("Receiving text...")
-
+                # Just log to console, not to UI
                 print(f"DEBUG: Received delta: '{delta[:50]}...'")
 
-                # Make sure we have a string to work with
+                # Process delta as normal
                 if delta is None:
                     delta = ""
 
-                # Ensure we have a valid string representation
                 if not isinstance(delta, str):
                     try:
                         delta = str(delta)
                     except Exception as err:
                         print(f"ERROR converting delta to string: {err}")
-                        delta = "[Error converting content]"
+                        delta = "[Non-text content]"
 
-                # Then update the main response widget
-                try:
-                    if self.current_response_widget:
-                        current_text = self.current_response_widget.renderable
-                        new_text = current_text + delta
-                        print(
-                            f"Updating response widget from {len(current_text)} to {len(new_text)} chars"
-                        )
-                        self.current_response_widget.update(new_text)
-                except Exception as err:
-                    print(f"ERROR updating response widget: {err}")
-                    # Create a new widget if update fails
-                    try:
-                        conversation = self.query_one("#conversation")
-                        self.current_response_widget = Static(
-                            f"Assistant: {delta}", classes="agent-message"
-                        )
-                        conversation.mount(self.current_response_widget)
-                    except Exception as mount_err:
-                        print(f"ERROR creating new widget: {mount_err}")
+                if not delta:
+                    return
+
+                if self.current_response_widget:
+                    current_text = self.current_response_widget.renderable
+                    new_text = current_text + delta
+                    self.current_response_widget.update(new_text)
 
             async def debug_tool_call(tool_info: dict):
-                debug_widget.update("Tool call received")
                 print(f"Tool call: {tool_info}")
+                await self._handle_tool_call(tool_info)
 
             async def debug_tool_result(result_info: dict):
-                debug_widget.update("Tool result received")
                 print(f"Tool result: {result_info}")
+                await self._handle_tool_result(result_info)
 
             async def debug_handoff(handoff_info: dict):
-                debug_widget.update("Handoff received")
                 print(f"Handoff: {handoff_info}")
+                await self._handle_handoff(handoff_info)
 
             # Try using the streaming approach first
             try:
@@ -210,7 +190,6 @@ class StreamingAgentPanel(Container):
                 print(
                     f"Streaming failed: {stream_err}, falling back to direct approach"
                 )
-                debug_widget.update("Streaming failed, using fallback approach...")
 
                 try:
                     # Use the direct OpenAI API as a last resort fallback
@@ -272,9 +251,6 @@ class StreamingAgentPanel(Container):
                         )
                         conversation.mount(self.current_response_widget)
 
-            # Update debug message with completion status
-            debug_widget.update("Debug: Streaming completed successfully")
-
             # Create a separate log message for completion
             print(f"Streaming completed successfully with result: {result}")
 
@@ -284,19 +260,6 @@ class StreamingAgentPanel(Container):
                 and self.current_response_widget.renderable == "Assistant: "
             ):
                 self.current_response_widget.update(f"Assistant: {result}")
-
-            # Start a delayed task to remove the debug widget
-            import asyncio
-
-            def cleanup_task():
-                async def _cleanup():
-                    await asyncio.sleep(2)
-                    if debug_widget in self.query_one("#conversation").children:
-                        debug_widget.remove()
-
-                return _cleanup()
-
-            self.app.run_worker(cleanup_task())
 
             # Post event for potential use by other components
             if self.current_response_widget:
@@ -395,11 +358,25 @@ class StreamingAgentPanel(Container):
 
     async def _handle_text_delta(self, delta: str) -> None:
         """Handle text delta events from streaming."""
-        if not delta:  # Skip empty deltas
-            return
+        try:
+            # Debug log to see what we're getting
+            print(f"Delta type: {type(delta)}, content: {str(delta)[:30]}...")
 
-        if self.current_response_widget:
-            try:
+            if delta is None:  # Skip None deltas
+                return
+
+            # Convert to string if needed
+            if not isinstance(delta, str):
+                try:
+                    delta = str(delta)
+                except Exception as conv_err:
+                    print(f"Error converting delta to string: {conv_err}")
+                    delta = "[Non-text content]"
+
+            if not delta:  # Skip empty deltas after conversion
+                return
+
+            if self.current_response_widget:
                 # Get the current text
                 current_text = self.current_response_widget.renderable
 
@@ -409,25 +386,20 @@ class StreamingAgentPanel(Container):
                 # Update the widget with the new text
                 self.current_response_widget.update(new_text)
 
-                # Print debug info
-                print(f"Updated response widget with delta: {delta[:20]}...")
-
-                # Scroll to bottom
+                # Auto-scroll
                 await self._scroll_to_bottom()
-            except Exception as e:
-                # Print the error but continue
-                print(f"Error in _handle_text_delta: {e}")
-                # Try to recover by creating a new widget if needed
+        except Exception as e:
+            print(f"Error in _handle_text_delta: {e}")
+            # Create a new widget if there was a problem
+            try:
                 conversation = self.query_one("#conversation")
-                if (
-                    not self.current_response_widget
-                    or self.current_response_widget not in conversation.children
-                ):
-                    self.current_response_widget = Static(
-                        "Assistant: " + delta, classes="agent-message"
-                    )
-                    conversation.mount(self.current_response_widget)
-                    await self._scroll_to_bottom()
+                self.current_response_widget = Static(
+                    f"Assistant: {delta}", classes="agent-message"
+                )
+                conversation.mount(self.current_response_widget)
+                await self._scroll_to_bottom()
+            except Exception as mount_err:
+                print(f"Failed to create recovery widget: {mount_err}")
 
     async def _handle_tool_call(self, tool_info: dict) -> None:
         """Handle tool call events."""
@@ -468,15 +440,19 @@ class StreamingAgentPanel(Container):
     async def _scroll_to_bottom(self) -> None:
         """Scroll the conversation to the bottom."""
         try:
+            # First try to get the ScrollableContainer
             container = self.query_one("#conversation-container")
-            if container is not None:
-                await container.scroll_end(animate=False)
-            else:
-                # Log that the container wasn't found
-                self.log.warning("Could not find #conversation-container for scrolling")
+            await container.scroll_end(animate=False)
+
+            # Also scroll the conversation itself as a backup
+            conversation = self.query_one("#conversation")
+            if hasattr(conversation, "scroll_end"):
+                await conversation.scroll_end(animate=False)
+
+            # Force a refresh to ensure scrolling takes effect
+            self.refresh()
         except Exception as e:
-            # Handle any other errors that might occur
-            self.log.error(f"Error scrolling to bottom: {e}")
+            print(f"Error scrolling to bottom: {e}")
 
     def _update_context(self) -> None:
         """Update the agent context with current IDE state."""

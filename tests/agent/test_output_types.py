@@ -8,6 +8,12 @@ import pytest
 from pydantic import ValidationError
 
 from terminatoride.agent.output_types import (
+    ExecutionTestResult,  # Changed from TestResult
+)
+from terminatoride.agent.output_types import (
+    ExecutionTestSuiteResult,  # Changed from TestSuiteResult
+)
+from terminatoride.agent.output_types import (
     CodeAnalysisResult,
     CodeIssue,
     CodeSuggestion,
@@ -24,8 +30,6 @@ from terminatoride.agent.output_types import (
     SearchResult,
     SearchResults,
     SeverityLevel,
-    TestResult,
-    TestSuiteResult,
 )
 
 
@@ -273,12 +277,12 @@ class TestOutputTypes:
     def test_test_suite_result_model(self):
         """Test the TestSuiteResult model."""
         # Create test results
-        test1 = TestResult(
+        test1 = ExecutionTestResult(
             test_name="test_addition",
             passed=True,
             execution_time=0.05,
         )
-        test2 = TestResult(
+        test2 = ExecutionTestResult(
             test_name="test_division",
             passed=False,
             error_message="AssertionError: expected 2.5 but got 2",
@@ -286,7 +290,7 @@ class TestOutputTypes:
         )
 
         # Test valid initialization
-        suite_result = TestSuiteResult(
+        suite_result = ExecutionTestSuiteResult(
             total_tests=2,
             passed_tests=1,
             failed_tests=1,

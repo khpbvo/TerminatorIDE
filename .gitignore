@@ -44,3 +44,8 @@ htmlcov/
 
 # Custom cache files
 .terminatoride/
+
+# Custom configuration files
+terminal-agent.py
+utilities.py
+Diff.py

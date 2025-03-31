@@ -3,6 +3,7 @@ Streaming implementation for the OpenAI Agent.
 This module extends the OpenAI Agent with streaming capabilities.
 """
 
+import asyncio
 import logging
 import os
 from typing import Any, Callable, Dict, Optional
@@ -82,87 +83,77 @@ class StreamingAgent:
         """Generate a streaming response to the user query."""
         # Check if rate limiting allows the request
         if not self.base_agent.rate_limiter.can_make_request():
-            raise Exception("Rate limit exceeded. Please try again later.")
+            wait_time = self.base_agent.rate_limiter.time_until_next_request()
+            return f"Too many requests. Please try again in {wait_time:.1f} seconds."
 
         try:
-            # Create context dict for the SDK
+            # Create context dict for the SDK - handle None values
             context_dict = {}
-            if hasattr(context, "user_query"):
+            if hasattr(context, "user_query") and context.user_query is not None:
                 context_dict["user_query"] = context.user_query
-            # Add other context fields as needed
 
-            # Get streaming run result
-            logger.info("Starting streaming request")
-            run_result = Runner.run_streamed(
-                self.base_agent.default_agent,
-                input=user_message,
+            # Add file context if available
+            if context.current_file is not None:
+                context_dict["file_content"] = context.current_file.content
+                context_dict["file_path"] = context.current_file.path
+                context_dict["language"] = context.current_file.language
+            elif context.file_content is not None:
+                context_dict["file_content"] = context.file_content
+                context_dict["file_path"] = context.file_path
+                context_dict["language"] = context.file_language
+
+            # Helper function to safely call callbacks
+            async def safe_call_callback(callback, *args, **kwargs):
+                if callback is None:
+                    return
+                if asyncio.iscoroutinefunction(callback):
+                    await callback(*args, **kwargs)
+                else:
+                    callback(*args, **kwargs)
+
+            # Process streaming events
+            runner = Runner()
+            result = await runner.run_streamed(
+                self.base_agent.agent,
+                user_message,
                 context=context_dict,
             )
 
-            # Track the final message content for return
-            final_content = ""
+            all_text = ""
+            async for event in result.stream_events():
+                if event.type == "raw_response_event" and hasattr(event.data, "delta"):
+                    all_text += event.data.delta
+                    await safe_call_callback(on_text_delta, event.data.delta)
+                elif event.type == "run_item_stream_event":
+                    if event.item.type == "tool_call_item":
+                        tool_info = {
+                            "name": event.item.tool_name,
+                            "arguments": event.item.tool_arguments,
+                        }
+                        await safe_call_callback(on_tool_call, tool_info)
+                    elif event.item.type == "tool_call_output_item":
+                        result_info = {
+                            "tool_name": event.item.tool_name,
+                            "output": event.item.output,
+                        }
+                        await safe_call_callback(on_tool_result, result_info)
+                elif event.type == "handoff_stream_event":
+                    handoff_info = {
+                        "from_agent": event.source_agent.name,
+                        "to_agent": event.target_agent.name,
+                        "reason": getattr(event, "reason", "No reason provided"),
+                    }
+                    await safe_call_callback(on_handoff, handoff_info)
 
-            # Process streaming events
-            try:
-                async for event in run_result.stream_events():
-                    # Log the event type for debugging
-                    logger.debug(f"Received event type: {event.type}")
+            return all_text or result.final_output
 
-                    # Handle different event types
-                    if event.type == "raw_response_event":
-                        logger.debug(f"Raw response event received: {event}")
-                        # Some events have a different structure
-                        try:
-                            if hasattr(event.data, "delta"):
-                                delta = event.data.delta
-                                if delta and on_text_delta:
-                                    final_content += delta
-                                    await on_text_delta(delta)
-                            else:
-                                logger.debug("No delta attribute found in event data")
-                                # For the first event, extract initial text if available
-                                if hasattr(event.data, "response") and hasattr(
-                                    event.data.response, "text"
-                                ):
-                                    text = event.data.response.text
-                                    if text and on_text_delta:
-                                        await on_text_delta(text)
-                                        final_content = text
-                        except Exception as e:
-                            logger.error(f"Error processing text delta: {e}")
-
-                    # More event handling...
-            except Exception as e:
-                logger.error(f"Error processing streaming events: {e}")
-
-            # Instead of awaiting run_result directly, use the content we've collected
-            logger.info("Streaming complete, getting final result")
-
-            # If we didn't get any content from streaming, try to get the final content
-            if not final_content:
-                try:
-                    # Try to get the result through a different method
-                    # Check if run_result has a get_result() method
-                    if hasattr(run_result, "get_result"):
-                        result = await run_result.get_result()
-                        final_content = result.final_output
-                    # If that fails, see if there's a result property
-                    elif hasattr(run_result, "result"):
-                        final_content = run_result.result
-                    # Last resort - see if run_result itself has text content
-                    elif hasattr(run_result, "final_output"):
-                        final_content = run_result.final_output
-                    else:
-                        # We couldn't get any content
-                        final_content = "Sorry, I couldn't generate a response."
-                except Exception as e:
-                    logger.error(f"Error getting final result: {e}")
-                    final_content = f"Error completing response: {str(e)}"
-
-            return final_content
         except Exception as e:
-            logger.error(f"Streaming failed: {e}")
-            return f"I encountered an error while processing your request: {str(e)}"
+            # Log the specific exception for debugging
+            import traceback
+
+            print(f"Streaming error: {str(e)}")
+            print(traceback.format_exc())
+            return f"Error processing request: {str(e)}"
 
 
 # Provide a singleton instance

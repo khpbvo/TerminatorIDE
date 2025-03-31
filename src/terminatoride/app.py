@@ -40,6 +40,34 @@ class TerminatorIDE(App):
         width: 100%;
         height: 100%;
         border: solid red;
+        layout: vertical;
+    }
+
+    #agent-title {
+        dock: top;
+        width: 100%;
+        height: auto;
+    }
+
+    #conversation-container {
+        width: 100%;
+        height: 1fr;
+        overflow: auto;
+    }
+
+    #input-container {
+        dock: bottom;
+        width: 100%;
+        height: auto;
+        padding: 1;
+        background: $surface-darken-1;
+        border-top: solid $primary;
+        layout: horizontal;
+    }
+
+    #agent-input {
+        width: 1fr;
+        margin-right: 1;
     }
 
     .agent-message {

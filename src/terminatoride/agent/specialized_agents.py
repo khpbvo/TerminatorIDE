@@ -9,6 +9,7 @@ from agents import Agent, RunContextWrapper, function_tool
 
 from terminatoride.agent.context import AgentContext
 from terminatoride.agent.models import ModelSelector, ModelType
+from terminatoride.agent.output_types import ExecutionTestSuiteResult  # Updated import
 from terminatoride.agent.output_types import (
     CodeAnalysisResult,
     DocumentationResult,
@@ -17,7 +18,6 @@ from terminatoride.agent.output_types import (
     ProjectSummary,
     RefactoringPlan,
     SearchResults,
-    TestSuiteResult,
 )
 
 
@@ -156,7 +156,7 @@ class SpecializedAgents:
     @staticmethod
     def create_test_runner() -> Agent:
         """
-        Create a test runner agent that uses TestSuiteResult as output.
+        Create a test runner agent that uses ExecutionTestSuiteResult as output.
 
         Returns:
             A configured agent for running and analyzing tests
@@ -174,7 +174,7 @@ class SpecializedAgents:
             """,
             model=ModelSelector.get_model_string(ModelType.GPT4O),
             tools=[get_file_content],
-            output_type=TestSuiteResult,
+            output_type=ExecutionTestSuiteResult,  # Changed from TestSuiteResult
         )
 
     @staticmethod

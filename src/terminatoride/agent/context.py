@@ -3,9 +3,11 @@ Context management for TerminatorIDE agents.
 Provides shared context between the IDE and agents.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 @dataclass
@@ -58,51 +60,52 @@ class EditorContext:
     selection: str = ""
 
 
-@dataclass
-class AgentContext:
+class AgentContext(BaseModel):
     """
     Comprehensive context for agents in TerminatorIDE.
     This context is passed to agents during execution.
     """
 
+    user_query: Optional[str] = None
     current_file: Optional[FileContext] = None
-    project: ProjectContext = field(default_factory=ProjectContext)
-    terminal: TerminalContext = field(default_factory=TerminalContext)
-    editor: EditorContext = field(default_factory=EditorContext)
+    selected_text: Optional[str] = None
+    file_content: Optional[str] = None
+    cursor_position: Optional[int] = None
+    file_path: Optional[str] = None
+    file_language: Optional[str] = None
 
-    # Keep track of recent files
-    recent_files: List[FileContext] = field(default_factory=list)
+    # This tells Pydantic to allow arbitrary methods/attributes
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "extra": "allow",
+    }
 
-    # Custom metadata for agent usage
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    def update_from_dict(self, data: dict):
+        """Safely handle potential None values."""
+        for key, value in data.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+        return self
 
-    def update_current_file(self, path: str, content: str, cursor_position: int = 0):
-        """Update the current file context."""
-        if not self.current_file or self.current_file.path != path:
-            # Create a new file context
-            self.current_file = FileContext(
-                path=path,
-                content=content,
-                cursor_position=cursor_position,
-                language=Path(path).suffix.lstrip("."),
-            )
+    def update_current_file(
+        self, path: str, content: str, cursor_position: int = 0, language: str = ""
+    ):
+        """Update the current file context.
 
-            # Add to recent files, removing if already exists
-            self.recent_files = [f for f in self.recent_files if f.path != path]
-            self.recent_files.insert(0, self.current_file)
-
-            # Limit recent files to 10
-            if len(self.recent_files) > 10:
-                self.recent_files.pop()
-        else:
-            # Update existing file context
-            self.current_file.content = content
-            self.current_file.cursor_position = cursor_position
-
-    def add_metadata(self, key: str, value: Any):
-        """Add metadata for agent context."""
-        self.metadata[key] = value
-
-    def get_metadata(self, key: str, default: Any = None) -> Any:
-        """Get metadata from agent context."""
-        return self.metadata.get(key, default)
+        Args:
+            path: Path to the file
+            content: Content of the file
+            cursor_position: Current cursor position in the file
+            language: Programming language of the file
+        """
+        self.file_path = path
+        self.file_content = content
+        self.cursor_position = cursor_position
+        self.file_language = language
+        self.current_file = FileContext(
+            path=path,
+            content=content,
+            language=language,
+            cursor_position=cursor_position,
+        )
+        return self

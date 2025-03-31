@@ -4,7 +4,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal
 from textual.widget import Widget
-from textual.widgets import Button, Static
+from textual.widgets import Button, DirectoryTree, Static
 
 from ..components.file_explorer import FileExplorer
 from ..utils.logging import setup_logger
@@ -21,8 +21,8 @@ class LeftPanel(Widget):
         Binding("shift+tab", "prev_tab", "Previous Tab"),
     ]
 
-    # Re-export FileSelected message
-    FileSelected = FileExplorer.FileSelected
+    # Re-export DirectoryTree.FileSelected message
+    FileSelected = DirectoryTree.FileSelected
 
     def __init__(self, *args, **kwargs):
         """Initialize the left panel."""
@@ -34,7 +34,7 @@ class LeftPanel(Widget):
         """Compose the left panel widget."""
         logger.info("Composing LeftPanel")
 
-        # Tab buttons
+        # Ultra-compact tab buttons (docked to top)
         with Horizontal(id="tab-buttons"):
             yield Button("Files", id="files-tab-btn", variant="primary")
             yield Button("Git", id="git-tab-btn", variant="default")
@@ -119,8 +119,11 @@ class LeftPanel(Widget):
         # Update current tab
         self.current_tab = tab_id
 
-    def on_file_explorer_file_selected(self, event: FileExplorer.FileSelected) -> None:
-        """Handle file selection events from the file explorer."""
+    def on_directory_tree_file_selected(
+        self, event: DirectoryTree.FileSelected
+    ) -> None:
+        """Handle file selection events from the directory tree."""
         logger.info(f"LeftPanel received file selection: {event.path}")
-        # Store locally, don't re-post (to avoid infinite loops)
+        # Forward the message
         self.current_file = event.path
+        self.post_message(event)

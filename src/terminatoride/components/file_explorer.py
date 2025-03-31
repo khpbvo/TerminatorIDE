@@ -1,13 +1,12 @@
-"""File Explorer component for TerminatorIDE."""
+"""File Explorer component for TerminatorIDE using Textual DirectoryTree."""
 
 from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
-from textual.message import Message
+from textual.containers import Container, Horizontal
 from textual.widget import Widget
-from textual.widgets import Button, DirectoryTree, Label, Static
+from textual.widgets import Button, DirectoryTree, Label
 
 from ..utils.logging import setup_logger
 
@@ -16,20 +15,15 @@ logger = setup_logger("file_explorer", "file_explorer.log")
 
 
 class FileExplorer(Widget):
-    """Simple file explorer widget using DirectoryTree."""
+    """File explorer widget using DirectoryTree."""
 
     BINDINGS = [
         Binding("ctrl+o", "open_home", "Open Home"),
         Binding("ctrl+r", "refresh", "Refresh"),
     ]
 
-    # Re-export messages
-    class FileSelected(Message):
-        """Message sent when a file is selected."""
-
-        def __init__(self, path: Path) -> None:
-            self.path = path
-            super().__init__()
+    # Re-export messages for compatibility
+    FileSelected = DirectoryTree.FileSelected
 
     def __init__(self, *args, **kwargs):
         """Initialize the file explorer."""
@@ -41,24 +35,20 @@ class FileExplorer(Widget):
         """Compose the file explorer widget."""
         logger.info("Composing FileExplorer")
 
-        # Container for the whole explorer
-        with Vertical(id="explorer-main"):
-            # Header
-            yield Label("File Explorer", id="explorer-header")
+        # Ultra-compact header with fixed position
+        yield Label("File Explorer", id="explorer-header")
 
-            # Button bar
-            with Horizontal(id="explorer-buttons"):
-                yield Button("Home", id="home-btn", variant="primary")
-                yield Button("Refresh", id="refresh-btn", variant="default")
+        # Compact button bar with docked position
+        with Horizontal(id="explorer-buttons"):
+            yield Button("Home", id="home-btn", variant="primary")
+            yield Button("Refresh", id="refresh-btn", variant="default")
 
-            # Content area - either directory tree or welcome message
-            with Vertical(id="explorer-content"):
-                # Welcome message (initially visible)
-                yield Static(
-                    "Click 'Home' to open your home directory", id="welcome-msg"
-                )
-
-                # Directory tree will be mounted dynamically
+        # Container for the main directory tree that fills available space
+        with Container(id="tree-container"):
+            # Default to home directory
+            home_path = str(Path.home())
+            self.current_path = Path(home_path)
+            yield DirectoryTree(home_path, id="directory-tree")
 
     def on_mount(self) -> None:
         """Handle mount event."""
@@ -85,50 +75,24 @@ class FileExplorer(Widget):
             # Update current path
             self.current_path = path
 
-            # Update header
-            self.query_one("#explorer-header").update(f"📁 {path}")
+            # Update header with short path name to save space
+            path_name = path.name or str(path)
+            self.query_one("#explorer-header").update(f"📁 {path_name}")
 
-            # Hide welcome message
-            welcome = self.query_one("#welcome-msg")
-            welcome.display = False
-
-            # Remove any existing directory tree
-            try:
-                existing_tree = self.query("#directory-tree").first()
-                if existing_tree:
-                    existing_tree.remove()
-                    logger.debug("Removed existing directory tree")
-            except Exception as e:
-                logger.debug(f"No existing tree to remove: {e}")
-
-            # Create new directory tree
-            content = self.query_one("#explorer-content")
-            tree = DirectoryTree(str(path), id="directory-tree")
-            content.mount(tree)
-            logger.info("Mounted new directory tree")
-
-            # Refresh UI
-            self.refresh()
+            # Get the tree and reload with new path
+            tree = self.query_one(DirectoryTree)
+            if str(path) != tree.path:
+                # Replace the tree with a new one
+                tree.remove()
+                tree = DirectoryTree(str(path), id="directory-tree")
+                self.query_one("#tree-container").mount(tree)
+            else:
+                # Just reload the current tree
+                tree.reload()
 
         except Exception as e:
             logger.error(f"Error opening directory: {e}")
             self.notify(f"Error: {str(e)}", severity="error")
-
-    def on_directory_tree_file_selected(
-        self, message: DirectoryTree.FileSelected
-    ) -> None:
-        """Handle file selection."""
-        path = message.path
-        logger.info(f"File selected: {path}")
-        self.post_message(self.FileSelected(path))
-
-    def on_directory_tree_directory_selected(
-        self, message: DirectoryTree.DirectorySelected
-    ) -> None:
-        """Handle directory selection."""
-        path = message.path
-        logger.info(f"Directory selected: {path}")
-        # DirectoryTree handles this automatically
 
     def action_open_home(self) -> None:
         """Action to open home directory."""

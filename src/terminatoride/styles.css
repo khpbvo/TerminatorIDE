@@ -303,75 +303,43 @@
 #file-explorer {
     width: 100%;
     height: 100%;
-    border: none;
-}
-
-#file-explorer-title {
-    background: var(--primary-darken-2);
-    color: var(--text);
-    text-align: center;
-}
-
-#file-search {
-    margin: 0 0 1px 0;
-    height: 1em;
-    width: 100%;
-}
-
-#file-tree-container {
-    height: 100%;
-    width: 100%;
-    border: 1px solid var(--primary);
-    margin-top: 1px;
-}
-
-#file-tree {
-    padding: 0 1px;
-}
-
-/* Simplified File Explorer Styling */
-#explorer-main {
-    width: 100%;
-    height: 100%;
-    background: var(--surface);
+    layout: grid;
+    grid-size: 1;
+    grid-rows: 1fr;
+    grid-columns: 1fr;
 }
 
 #explorer-header {
     background: var(--primary-darken-2);
     color: var(--text);
     text-align: center;
-    padding: 1px;
+    padding: 0;
     font-weight: bold;
+    height: 1em;
+    line-height: 1em;
+    dock: top;
 }
 
 #explorer-buttons {
     width: 100%;
     height: auto;
-    padding: 1px;
+    padding: 0;
     background: var(--surface-darken-1);
+    display: flex;
+    flex-direction: row;
+    dock: top;
 }
 
 #explorer-buttons Button {
-    margin: 0 1px;
+    margin: 0;
     flex: 1;
+    height: 1em;
+    min-height: 1em;
+    padding: 0;
 }
 
-#explorer-content {
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    border: 1px solid var(--primary-darken-2);
-}
-
-#welcome-msg {
-    width: 100%;
-    height: 100%;
-    text-align: center;
-    padding-top: 4rem;
-    color: var(--text-muted);
-}
-
-#directory-tree {
+/* Tree container that holds DirectoryTree */
+#tree-container {
     width: 100%;
     height: 100%;
 }
@@ -381,19 +349,26 @@
     width: 100%;
     height: 100%;
     overflow: auto;
+    border: none;
+    margin: 0;
+    padding: 0;
 }
 
+/* Directory styling */
 .directory-tree--folder {
-    color: #5294e2;
+    color: var(--primary-lighten-1);
     font-weight: bold;
 }
 
+/* File styling */
 .directory-tree--file {
-    color: #d3dae3;
+    color: var(--text);
 }
 
-.directory-tree--hidden {
-    opacity: 0.5;
+/* Selected item styling */
+.directory-tree--cursor {
+    background: var(--primary);
+    color: var(--text);
 }
 
 /* Left Panel Tab Styling */
@@ -424,25 +399,6 @@
     color: var(--text);
 }
 
-/* File Explorer empty state styling */
-#empty-state-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 1rem;
-}
-
-.empty-state-message {
-    margin-bottom: 1rem;
-    opacity: 0.7;
-}
-
-.open-folder-button {
-    padding: 0.5rem 1rem;
-}
-
 /* File explorer button bar */
 #button-bar {
     height: auto;
@@ -457,8 +413,8 @@
     padding: 0 1px;
 }
 
-/* Style the selected tree node more prominently */
-Tree .tree--cursor {
+/* Style the tree node more prominently */
+Tree .tree--cursor, DirectoryTree .tree--cursor {
     background: var(--primary);
     color: var(--text);
     font-weight: bold;
@@ -468,14 +424,18 @@ Tree .tree--cursor {
 #tab-buttons {
     width: 100%;
     height: auto;
-    margin: 0 0 1px 0;
+    margin: 0;
     text-align: center;
+    dock: top;
 }
 
 #tab-buttons Button {
     flex: 1;
     margin: 0;
     min-width: 7em;
+    padding: 0;
+    height: 1em;
+    min-height: 1em;
     border-bottom: 1px solid var(--accent);
 }
 
@@ -484,6 +444,11 @@ Tree .tree--cursor {
     width: 100%;
     height: 100%;
     display: block;
+}
+
+/* Hidden class for toggling visibility */
+.hidden {
+    display: none;
 }
 
 /* Streaming Agent Panel Specific Styles */
@@ -620,9 +585,4 @@ Tree .tree--cursor {
 .folder-dialog Button {
     margin: 0 1px;
     min-width: 8px;
-}
-
-/* Hidden class for toggling visibility */
-.hidden {
-    display: none;
 }

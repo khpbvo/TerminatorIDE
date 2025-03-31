@@ -1,9 +1,9 @@
 from textual.app import App, ComposeResult
-from textual.containers import Container
-from textual.widgets import Button, Footer, Header, Static
+from textual.widgets import Button, Footer, Header
 
 from terminatoride.agent.agent_sdk_trace_bridge import configure_sdk_tracing
 from terminatoride.config import get_config
+from terminatoride.panels.editor_panel import EditorPanel
 from terminatoride.panels.left_panel import LeftPanel
 from terminatoride.panels.streaming_agent_panel import StreamingAgentPanel
 from terminatoride.screens.devconsole import DevConsoleScreen
@@ -112,9 +112,8 @@ class TerminatorIDE(App):
         # Left panel (File Explorer, Git, SSH)
         yield LeftPanel(id="left-panel")
 
-        # Middle panel (Text Editor)
-        with Container(id="editor-panel"):
-            yield Static("Editor Panel")
+        # Middle panel (Text Editor) - Use the EditorPanel class
+        yield EditorPanel(id="editor-panel")
 
         # Right panel (AI Agent with streaming capabilities)
         yield StreamingAgentPanel(id="agent-panel")

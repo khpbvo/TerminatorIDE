@@ -15,42 +15,13 @@
     color: var(--text);
     padding: 1px;
 }
-/* Editor panel styling */
-#editor-panel {
-    width: 100%;
-    height: 100%;
-    border: 1px solid var(--primary);
-    background: var(--surface-darken-1);
-    color: var(--text);
-    padding: 1px;
-    display: grid;
-    grid-template-rows: auto auto 1fr;
-}
 
-#editor-title {
-    background: var(--primary-darken-2);
-    text-align: center;
-    padding: 1px;
-}
-
-#editor-actions {
-    padding: 1px;
-    display: flex;
-    justify-content: space-between;
-    background: var(--primary-darken-3);
-}
 
 #file-path-display {
     color: var(--text);
     padding: 0 2px;
 }
 
-#editor-content-container {
-    overflow: auto;
-    margin: 0;
-    padding: 0;
-    background: var(--surface-darken-2);
-}
 
 /* Code syntax highlighting in agent panel */
 .agent-code {
